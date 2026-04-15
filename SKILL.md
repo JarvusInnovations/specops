@@ -179,6 +179,27 @@ Compare the implementation against the spec, not against your own ideas of how i
 4. For each feature area, create the relevant spec files before coding
 5. Reference the specs directory in your project's CLAUDE.md or README
 6. Establish the convention: PRs that add features should include spec updates
+7. Set up the spec drift auditor (see below)
+
+### Setting up the spec drift auditor
+
+The spec drift auditor is a specialized agent that does an exhaustive comparison of your `specs/` directory against the actual implementation, producing tables of gaps, undocumented implementations, and conflicts. To set it up in a project:
+
+1. **Copy the agent definition** from this skill's `references/spec-drift-auditor.md` into your project at `.claude/agents/spec-drift-auditor.md`. Customize the "Methodology" phases to match your project's structure — for example, update Phase 3 ("Inventory the Implementation") to list the specific directories and key files in your codebase (source directories, migration paths, frontend code, infrastructure files, etc.).
+
+2. **Copy the command definition** from this skill's `references/audit-spec-drift.md` into your project at `.claude/commands/audit-spec-drift.md`. This gives users a `/audit-spec-drift` slash command that launches the auditor agent.
+
+3. **Reference in CLAUDE.md** — add a note to the project's CLAUDE.md mentioning the auditor is available, e.g.:
+
+   ```
+   ## Spec Drift Auditing
+   Run `/audit-spec-drift` to launch a comprehensive audit comparing specs/ against the implementation.
+   ```
+
+The reference files are located at:
+
+- `references/spec-drift-auditor.md` — the agent definition (goes in `.claude/agents/`)
+- `references/audit-spec-drift.md` — the command definition (goes in `.claude/commands/`)
 
 ## Keeping specs alive
 
