@@ -64,12 +64,14 @@ function parsePlan(filePath) {
   const slug = path.basename(filePath, '.md');
   const status = parseScalar(fm, 'status') || 'unknown';
   const depends = parseList(fm, 'depends');
+  const awaits = parseList(fm, 'awaits');
   const pr = parseScalar(fm, 'pr');
   return {
     slug,
     file: filePath,
     status,
     depends,
+    awaits,
     pr: pr ? Number(pr) : null,
   };
 }

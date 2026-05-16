@@ -38,6 +38,9 @@ frontmatter field. Nodes are styled by status:
   done          green (PR number appended if pr: is set)
   blocked       red
   cancelled     dashed gray (hidden unless --include-cancelled)
+
+Plans with non-empty awaits: get a dashed border (overlaid on the status
+color) so external blockers are visible.
 `);
 }
 
@@ -127,9 +130,13 @@ function render(plans, opts) {
   lines.push('  classDef done fill:#d1fae5,stroke:#059669,color:#064e3b');
   lines.push('  classDef blocked fill:#fee2e2,stroke:#dc2626,color:#7f1d1d');
   lines.push('  classDef cancelled fill:#e5e7eb,stroke:#9ca3af,color:#6b7280,stroke-dasharray:5 5');
-  // Apply classes
+  lines.push('  classDef awaits stroke-dasharray:5 5,stroke-width:2px');
+  // Apply classes — status first, then awaits overlay for nodes with external blockers
   for (const plan of shown.values()) {
     lines.push(`  class ${nodeId(plan.slug)} ${statusClass(plan.status)}`);
+    if (plan.awaits && plan.awaits.length > 0) {
+      lines.push(`  class ${nodeId(plan.slug)} awaits`);
+    }
   }
   return lines.join('\n') + '\n';
 }

@@ -2,10 +2,12 @@
 // plans-next — print plans ordered by readiness.
 //
 // Reads a plans/ directory and prints:
-//   - Ready: plans whose deps are all `done` (or have no deps), sorted so
-//     plans that unblock the most downstream work appear first.
-//   - Blocked: plans with at least one unfinished dep, each shown with its
-//     incomplete deps called out.
+//   - Ready: plans whose deps are all `done` AND `awaits:` is empty, sorted
+//     so plans that unblock the most downstream work appear first.
+//   - Awaiting external: plans with non-empty `awaits:`, each external
+//     blocker called out.
+//   - Blocked by unfinished deps: plans whose `awaits:` is empty but have
+//     at least one unfinished dep, each incomplete dep called out.
 //
 // `done` and `cancelled` plans are skipped by default.
 // `in-progress` plans are skipped by default (use --include-in-progress).
@@ -28,10 +30,11 @@ Options:
   --slugs-only             Print only ready slugs, one per line (machine-friendly)
   -h, --help               Show this help
 
-Output: two sections — Ready (deps all done) and Blocked (one or more deps open,
-each unfinished dep called out). Plans done/cancelled are skipped. Ready plans
-are sorted by transitive open-downstream count (the plan that unblocks the most
-work appears first); ties broken alphabetically.
+Output: three sections — Ready (deps all done AND awaits empty), Awaiting
+external (awaits non-empty), and Blocked by unfinished deps (awaits empty but
+one or more deps open, each unfinished dep called out). Plans done/cancelled
+are skipped. Ready plans are sorted by transitive open-downstream count (the
+plan that unblocks the most work appears first); ties broken alphabetically.
 `);
 }
 
@@ -62,7 +65,11 @@ function die(msg) {
 }
 
 function classify(plan, plans) {
-  // Returns { state: 'ready' | 'in-progress' | 'blocked-by-deps' | 'blocked-status', openDeps: string[] }
+  // Returns { state, openDeps: string[] } where state is one of:
+  //   'ready' | 'in-progress' | 'awaiting' | 'blocked-by-deps' | 'blocked-status'
+  // `awaiting` and `blocked-by-deps` are mutually exclusive in classification;
+  // `awaiting` takes precedence when both apply (a plan with non-empty awaits
+  // is never "Ready" regardless of dep state, and surfaces under Awaiting).
   const openDeps = [];
   for (const dep of plan.depends) {
     const depPlan = plans.get(dep);
@@ -76,6 +83,7 @@ function classify(plan, plans) {
   }
   if (plan.status === 'in-progress') return { state: 'in-progress', openDeps };
   if (plan.status === 'blocked') return { state: 'blocked-status', openDeps };
+  if (plan.awaits && plan.awaits.length > 0) return { state: 'awaiting', openDeps };
   if (openDeps.length > 0) return { state: 'blocked-by-deps', openDeps };
   return { state: 'ready', openDeps };
 }
@@ -103,6 +111,7 @@ function main() {
 
   const ready = [];
   const inProgress = [];
+  const awaiting = [];
   const blockedByDeps = [];
   const blockedByStatus = [];
   const done = [];
@@ -115,6 +124,7 @@ function main() {
     const c = classify(plan, plans);
     if (c.state === 'ready') ready.push({ plan, openDeps: c.openDeps });
     else if (c.state === 'in-progress') inProgress.push({ plan, openDeps: c.openDeps });
+    else if (c.state === 'awaiting') awaiting.push({ plan, openDeps: c.openDeps });
     else if (c.state === 'blocked-status') blockedByStatus.push({ plan, openDeps: c.openDeps });
     else blockedByDeps.push({ plan, openDeps: c.openDeps });
   }
@@ -147,9 +157,22 @@ function main() {
   if (opts.includeInProgress && inProgress.length > 0) {
     out.push('In progress');
     out.push('===========');
-    for (const r of inProgress) out.push(`  - ${r.plan.slug}${fmtCount(r.plan.slug)}`);
+    for (const r of inProgress) {
+      out.push(`  - ${r.plan.slug}${fmtCount(r.plan.slug)}`);
+      for (const a of (r.plan.awaits || [])) out.push(`      ⌛ ${a}`);
+    }
     out.push('');
   }
+
+  out.push('Awaiting external');
+  out.push('=================');
+  if (awaiting.length === 0) out.push('(none)');
+  else for (const r of awaiting) {
+    out.push(`  - ${r.plan.slug}${fmtCount(r.plan.slug)}`);
+    for (const a of r.plan.awaits) out.push(`      ⌛ ${a}`);
+    for (const d of r.openDeps) out.push(`      ↳ ${d}`);
+  }
+  out.push('');
 
   out.push('Blocked by unfinished deps');
   out.push('==========================');
@@ -163,12 +186,16 @@ function main() {
   if (opts.includeBlocked && blockedByStatus.length > 0) {
     out.push('Blocked (status: blocked)');
     out.push('=========================');
-    for (const r of blockedByStatus) out.push(`  - ${r.plan.slug}`);
+    for (const r of blockedByStatus) {
+      out.push(`  - ${r.plan.slug}`);
+      for (const a of (r.plan.awaits || [])) out.push(`      ⌛ ${a}`);
+    }
     out.push('');
   }
 
   out.push(
     `Summary: ${ready.length} ready · ${inProgress.length} in-progress · ` +
+    `${awaiting.length} awaiting · ` +
     `${blockedByDeps.length} blocked-by-deps · ${blockedByStatus.length} blocked · ` +
     `${done.length} done · ${cancelled.length} cancelled`
   );
