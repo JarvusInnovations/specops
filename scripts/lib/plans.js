@@ -64,12 +64,14 @@ function parsePlan(filePath) {
   const slug = path.basename(filePath, '.md');
   const status = parseScalar(fm, 'status') || 'unknown';
   const depends = parseList(fm, 'depends');
+  const awaits = parseList(fm, 'awaits');
   const pr = parseScalar(fm, 'pr');
   return {
     slug,
     file: filePath,
     status,
     depends,
+    awaits,
     pr: pr ? Number(pr) : null,
   };
 }
@@ -108,6 +110,23 @@ function loadPlans(dir) {
       if (!plans.has(dep)) {
         warnings.push(`${plan.slug}: depends on "${dep}" which has no plan file`);
       }
+    }
+  }
+
+  // Warn on undocumented blocks: status: blocked with no awaits and no
+  // unfinished depends leaves the blocker unstated. The plan protocol
+  // calls this a smell; surface it so authors fix it.
+  for (const plan of plans.values()) {
+    if (plan.status !== 'blocked') continue;
+    if (plan.awaits.length > 0) continue;
+    const hasOpenDeps = plan.depends.some((dep) => {
+      const d = plans.get(dep);
+      return d && d.status !== 'done' && d.status !== 'cancelled';
+    });
+    if (!hasOpenDeps) {
+      warnings.push(
+        `${plan.slug}: status: blocked with no awaits: and no unfinished depends — what's blocking it?`,
+      );
     }
   }
 
