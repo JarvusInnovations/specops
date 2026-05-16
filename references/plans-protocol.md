@@ -130,11 +130,11 @@ A plan often depends on something outside its repo's DAG — an upstream library
 ```yaml
 awaits:
   - "JarvusInnovations/gitsheets@v1.0 — consumed via Repository / Sheet / openStore"
-  - "https://github.com/example-org/api-vendor/issues/42"
+  - "https://github.com/example-org/api-vendor/issues/42 — need their decision on the auth header format before we can wire the client"
   - "staff decision on Slack channel rename (#governance)"
 ```
 
-Each entry is free-form text — a URL, a `repo@tag`, "vendor X delivery Q3 2026", or any other pointer specific enough that a future reader (or `grep`) can chase it. Keep entries short; one line each.
+Each entry is free-form text — a URL, a `repo@tag`, "vendor X delivery Q3 2026", or any other pointer specific enough that a future reader (or `grep`) can chase it. Each entry should carry enough context to make the block self-explanatory; a trailing em-dash clause for the *why* keeps entries useful when grep surfaces them out-of-context. Keep entries short; one line each.
 
 ### Why `awaits:` exists alongside `depends:` and `upstream-specs:`
 
@@ -143,6 +143,8 @@ Each entry is free-form text — a URL, a `repo@tag`, "vendor X delivery Q3 2026
 | `depends`        | In-repo plan slugs that must be `done` first   |       ✓       |      n/a      |
 | `upstream-specs` | Specs in another repo this plan consumes       |       —       |       —       |
 | `awaits`         | Anything else external — releases, decisions, vendor deliveries | — | — |
+
+These three fields are **orthogonal axes**, not mutually exclusive categories. The same upstream relationship can appear in two fields at once. Canonical example: a plan that consumes gitsheets carries both `upstream-specs: [gitsheets:specs/behaviors/transactions.md, ...]` (the specs we'll implement against) *and* `awaits: ["JarvusInnovations/gitsheets@v1.0 — ..."]` (the release we're waiting for). The first describes what we promise to conform to; the second describes what has to ship before we can. Both are true simultaneously.
 
 Without `awaits:`, external blockers had to live in prose inside the body — invisible to scripts, ungreppable across the project, and at risk of being lost when the plan freezes.
 
