@@ -114,6 +114,10 @@ Transitions are commits with specific message conventions:
 
 `blocked` and `cancelled` are edge cases — most plans go directly from `planned` to `done`.
 
+**Parallel work**: multiple plans can be `in-progress` simultaneously across contributors. One plan per contributor at a time is the norm — keeps each plan's branch and PR coherent — but the protocol doesn't forbid more.
+
+**Splitting a plan**: if a `planned` plan grows too big, rename it and add the new plan(s) with `depends:` updated to reflect the new partitioning. Do this as its own PR (not mid-implementation) so the DAG change is reviewable on its own. If the plan is already `in-progress`, finish or abandon it before splitting — don't restructure under your own feet.
+
 ## The closeout commit
 
 The last commit on the implementation branch, before merge, does **five things in one shot** under the message `chore(plans): mark <slug> done (PR #<n>)`:
