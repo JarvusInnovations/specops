@@ -153,7 +153,7 @@ Without `awaits:`, external blockers had to live in prose inside the body — in
 - `status: planned` + non-empty `awaits:` — we haven't started; we already know an external block exists. Work may begin once the block clears, or partially if some of the plan's scope is independent of the block.
 - `status: in-progress` + non-empty `awaits:` — we've done what we can without the awaited thing; the rest of the plan is paused until it lands.
 - `status: blocked` + non-empty `awaits:` — work cannot proceed at all; `awaits:` says why.
-- `status: blocked` + empty `awaits:` — smell. A blocked plan should always say what's blocking it (either via `awaits:`, or unfinished `depends:`, or both).
+- `status: blocked` + empty `awaits:` — smell. A blocked plan should always say what's blocking it (either via `awaits:`, or unfinished `depends:`, or both). `plans-next` and `plans-dag` emit a stderr warning when they see `status: blocked` with no `awaits:` *and* no unfinished `depends:` — the strongest form of this smell, where nothing structural explains the block.
 
 ### Resolution
 

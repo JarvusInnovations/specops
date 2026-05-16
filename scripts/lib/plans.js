@@ -113,6 +113,23 @@ function loadPlans(dir) {
     }
   }
 
+  // Warn on undocumented blocks: status: blocked with no awaits and no
+  // unfinished depends leaves the blocker unstated. The plan protocol
+  // calls this a smell; surface it so authors fix it.
+  for (const plan of plans.values()) {
+    if (plan.status !== 'blocked') continue;
+    if (plan.awaits.length > 0) continue;
+    const hasOpenDeps = plan.depends.some((dep) => {
+      const d = plans.get(dep);
+      return d && d.status !== 'done' && d.status !== 'cancelled';
+    });
+    if (!hasOpenDeps) {
+      warnings.push(
+        `${plan.slug}: status: blocked with no awaits: and no unfinished depends — what's blocking it?`,
+      );
+    }
+  }
+
   return { plans, warnings };
 }
 
