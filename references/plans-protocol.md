@@ -45,6 +45,8 @@ specs:                   # spec files in THIS repo that this plan implements
   - specs/behaviors/storage.md
 upstream-specs:          # (optional) specs in OTHER repos this plan consumes
   - other-repo:specs/behaviors/transactions.md
+awaits:                  # (optional) external blockers — see "External blockers" below
+  - "other-org/library@v1.0 — consumed via Foo / Bar / openThing API"
 issues: [128, 129]       # (optional) related issue numbers
 pr: 42                   # (optional) merged PR — added at closeout, knowable only after `gh pr create`
 ---
@@ -56,6 +58,7 @@ Field semantics:
 - **`depends`** — list of plan slugs (filenames without `.md`) that must be `done` before this plan can start. Empty list (`[]`) for plans with no prerequisites. Update mid-stream if a new prerequisite is discovered.
 - **`specs`** — specs in *this* repo that this plan implements. The [spec-drift auditor](./spec-drift-auditor.md) treats these as a contract: the implementation must match.
 - **`upstream-specs`** *(optional)* — specs in *other* repos that this plan consumes. Format: `<repo-name>:<path-from-repo-root>`. **Informational only** — the spec-drift auditor does *not* check these; we don't promise to implement specs we don't own. The distinction exists so dangling references to dependency specs don't show up as drift findings.
+- **`awaits`** *(optional)* — list of external blockers. Each entry is a one-line pointer + reason for an upstream release, vendor delivery, partner decision, or anything else not represented by an in-repo plan. Distinct from `depends:` (in-repo plan slugs) and `upstream-specs:` (specs owned by another repo). See [External blockers](#external-blockers).
 - **`issues`** *(optional)* — related issue numbers in your tracker.
 - **`pr`** *(optional)* — the PR that closed the plan. Set only when `status: done`.
 
@@ -117,6 +120,50 @@ Transitions are commits with specific message conventions:
 **Parallel work**: multiple plans can be `in-progress` simultaneously across contributors. One plan per contributor at a time is the norm — keeps each plan's branch and PR coherent — but the protocol doesn't forbid more.
 
 **Splitting a plan**: if a `planned` plan grows too big, rename it and add the new plan(s) with `depends:` updated to reflect the new partitioning. Do this as its own PR (not mid-implementation) so the DAG change is reviewable on its own. If the plan is already `in-progress`, finish or abandon it before splitting — don't restructure under your own feet.
+
+<a id="external-blockers"></a>
+
+## External blockers (`awaits:`)
+
+A plan often depends on something outside its repo's DAG — an upstream library release, a partner sign-off, a vendor delivery, a customer decision. Capture each as a one-line entry in the optional `awaits:` frontmatter field:
+
+```yaml
+awaits:
+  - "JarvusInnovations/gitsheets@v1.0 — consumed via Repository / Sheet / openStore"
+  - "https://github.com/example-org/api-vendor/issues/42"
+  - "staff decision on Slack channel rename (#governance)"
+```
+
+Each entry is free-form text — a URL, a `repo@tag`, "vendor X delivery Q3 2026", or any other pointer specific enough that a future reader (or `grep`) can chase it. Keep entries short; one line each.
+
+### Why `awaits:` exists alongside `depends:` and `upstream-specs:`
+
+| Field            | Points at                                      | DAG-traversal | Auditor reads |
+| ---------------- | ---------------------------------------------- | :-----------: | :-----------: |
+| `depends`        | In-repo plan slugs that must be `done` first   |       ✓       |      n/a      |
+| `upstream-specs` | Specs in another repo this plan consumes       |       —       |       —       |
+| `awaits`         | Anything else external — releases, decisions, vendor deliveries | — | — |
+
+Without `awaits:`, external blockers had to live in prose inside the body — invisible to scripts, ungreppable across the project, and at risk of being lost when the plan freezes.
+
+### Relationship to `status`
+
+`awaits:` is the *structural fact* of an external block. `status:` is the *lifecycle state* of the plan. They're independent:
+
+- `status: planned` + non-empty `awaits:` — we haven't started; we already know an external block exists. Work may begin once the block clears, or partially if some of the plan's scope is independent of the block.
+- `status: in-progress` + non-empty `awaits:` — we've done what we can without the awaited thing; the rest of the plan is paused until it lands.
+- `status: blocked` + non-empty `awaits:` — work cannot proceed at all; `awaits:` says why.
+- `status: blocked` + empty `awaits:` — smell. A blocked plan should always say what's blocking it (either via `awaits:`, or unfinished `depends:`, or both).
+
+### Resolution
+
+When the awaited thing happens, delete the matching entry from `awaits:`. Git history is the audit trail. If a plan closes with entries still present, add a Notes entry explaining why (rare — usually means the plan worked around the block, or the block stopped being load-bearing).
+
+### How the scripts treat it
+
+`plans-next` treats `awaits:` as a blocker independent of `depends:`. A plan with non-empty `awaits:` never appears under "Ready to work on" — it surfaces under a separate **Awaiting external** section, with each `awaits:` entry called out. If the plan is *also* blocked by unfinished `depends:`, both reasons are shown.
+
+`plans-dag` styles nodes with non-empty `awaits:` distinctly (dashed border) so the external dependency is visible in the rendered graph.
 
 ## The closeout commit
 
@@ -224,7 +271,7 @@ scripts/plans-dag plans/ --fence
 scripts/plans-dag plans/ --direction LR
 ```
 
-Reads each plan's `status`, `depends`, and `pr` fields and emits a Mermaid `graph` with nodes styled by status (`planned`, `in-progress`, `done`, `blocked`). Use it in code review, in stand-ups, or pasted (and dated) into a wiki snapshot. Don't commit a static rendering into `plans/README.md` — the next status flip will make it lie.
+Reads each plan's `status`, `depends`, `pr`, and `awaits` fields and emits a Mermaid `graph` with nodes styled by status (`planned`, `in-progress`, `done`, `blocked`). Plans with non-empty `awaits:` get a dashed border so external blockers are visible at a glance. Use it in code review, in stand-ups, or pasted (and dated) into a wiki snapshot. Don't commit a static rendering into `plans/README.md` — the next status flip will make it lie.
 
 ### `plans-next` — what to work on next
 
@@ -236,7 +283,13 @@ scripts/plans-next plans/
 scripts/plans-next plans/ --include-in-progress
 ```
 
-Skips `done` and `cancelled` plans, then lists what's left in two sections: **Ready** (deps all `done`) and **Blocked** (one or more deps still open, with each unfinished dep called out). Within each section, plans are topologically sorted so the plans that unblock the most downstream work appear first.
+Skips `done` and `cancelled` plans, then lists what's left in three sections:
+
+- **Ready** — `depends:` all `done` AND `awaits:` empty.
+- **Awaiting external** — `awaits:` non-empty (regardless of `depends:` state). Each `awaits:` entry is shown beneath the plan so the blocker is clear.
+- **Blocked by unfinished deps** — `depends:` has unfinished entries AND `awaits:` is empty. Each unfinished dep is called out.
+
+Within each section, plans are topologically sorted so the plans that unblock the most downstream work appear first.
 
 Both scripts share `lib/plans.js` — a frontmatter parser and DAG walker. See [`scripts/`](../scripts/) in this skill.
 
@@ -277,6 +330,7 @@ Suppose `workspace.md` ships scaffolding and discovers `.env.example` is natural
 ## Quick checklist for a closeout PR
 
 - [ ] Frontmatter: `status: done`, `pr: <n>` added
+- [ ] Any `awaits:` entries either resolved (deleted) or explicitly justified in Notes (rare — usually means the block stopped being load-bearing or was worked around)
 - [ ] Every Validation box reflects reality (`[x]` only if verified; unverified stays `[ ]` with a Notes entry)
 - [ ] Notes section populated (decisions, gotchas, version pins — not action items)
 - [ ] Follow-ups section populated (Issue / Deferred to plan / Tracked as / None)
