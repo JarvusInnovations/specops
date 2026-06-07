@@ -1,0 +1,25 @@
+{
+  "name": "specops",
+  "version": "0.0.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "Agent-facing CLI for the SpecOps plans DAG — token-efficient TOON output, self-installing session hooks. A thin determinism layer over a files-first plans/ workflow.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:cli": "bun scripts/build-cli.ts",
+    "build:skill": "bun scripts/build-skill.ts",
+    "build": "bun scripts/build-cli.ts && bun scripts/build-skill.ts",
+    "check": "bun scripts/build-cli.ts --check && bun scripts/build-skill.ts --check",
+    "type-check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@toon-format/toon": "2.3.0",
+    "@types/node": "^22.0.0",
+    "axi-sdk-js": "0.1.7",
+    "esbuild": "0.28.0",
+    "typescript": "^5.6.0"
+  }
+}
