@@ -1,0 +1,25 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The committed bundle's version is injected from `git describe`;
+          # full history + tags keep that stable across CI runs.
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run type-check
+      # Fails if scripts/specops.mjs or SKILL.md's generated regions are stale
+      # relative to src/cli/ — i.e. someone changed the source without rebuilding.
+      - run: bun run check
+      - run: bun test

@@ -289,12 +289,26 @@ The full protocol — frontmatter schema, body template, status lifecycle, the c
 
 ### Querying the plans DAG
 
-`plans/README.md` deliberately does **not** maintain a hand-drawn DAG or a status table — they'd rot the moment someone forgot to update them. Two scripts query the authoritative frontmatter on demand:
+`plans/README.md` deliberately does **not** maintain a hand-drawn DAG or a status table — they'd rot the moment someone forgot to update them. The bundled **`specops` CLI** queries the authoritative plan frontmatter on demand and emits agent-friendly [TOON](https://toonformat.dev/) output:
 
-- **`scripts/plans-dag <plans-dir>`** — emits a Mermaid graph of the DAG with nodes styled by status. Add `--fence` to wrap in a Markdown code fence; `--direction LR` for horizontal layout.
-- **`scripts/plans-next <plans-dir>`** — prints plans ordered by readiness. Ready plans first (sorted so the plan that unblocks the most downstream work appears first), then blocked plans with their unfinished deps called out.
+<!-- BEGIN GENERATED: command-reference -->
 
-Both are zero-dependency Node.js scripts — usable the moment the skill is checked out. See `scripts/lib/plans.js` for the shared parser if extending.
+### Plans
+
+- `scripts/specops next [--include-in-progress] [--slugs-only] [--dir <path>]` — Plans ordered by readiness — ready (deps met, nothing awaited) first, then awaiting-external and blocked, with what unblocks the most work on top.
+- `scripts/specops dag [--direction TB|LR|BT|RL] [--fence] [--include-cancelled] [--dir <path>]` — Mermaid graph of the plans DAG, nodes styled by status, external blockers dashed.
+
+### Session
+
+- `scripts/specops hook install [--scope project|global] [--dir <path>] | hook status | hook uninstall [--scope project|global]` — Manage the SessionStart hook that loads this repo's plans dashboard at the start of every agent session.
+
+<!-- END GENERATED: command-reference -->
+
+Run with no command (`scripts/specops`) for the current repo's plans dashboard — a readiness summary, what's ready, and what's blocked. Hygiene warnings (dangling deps, a `status: blocked` plan with nothing recorded as blocking it) are surfaced on stdout where the agent will see them.
+
+The CLI is a **thin determinism layer over a files-first workflow**: it computes readiness, ordering, the dependency graph, and warnings *across all plan files* — work an agent can't reliably do by eye. To read or edit a single plan, open its file directly; there is deliberately no `view`/`show` command.
+
+It ships as a self-contained bundle at `scripts/specops.mjs` (invoked through the `scripts/specops` shim), runs on `node ≥ 20` with no `npm install` and no `node_modules`, and is rebuilt from the TypeScript in `src/cli/` with `bun run build`. Run `scripts/specops hook install` once in a repo to load the plans dashboard into every agent session automatically.
 
 ## Setting up spec-driven development in a new project
 
@@ -335,9 +349,9 @@ Note: the auditor checks the `specs:` field of plan files and the `specs/` tree.
 The plans protocol gives a project a structured way to track work-in-flight without it rotting. To set it up:
 
 1. **Create the `plans/` directory** at the project root.
-2. **Write `plans/README.md`** that briefly states what plans are (motion vs state) and points at [references/plans-protocol.md](references/plans-protocol.md) for the full spec. Resist the urge to maintain a DAG drawing or status table inside it — both rot. The scripts below regenerate that view on demand.
+2. **Write `plans/README.md`** that briefly states what plans are (motion vs state) and points at [references/plans-protocol.md](references/plans-protocol.md) for the full spec. Resist the urge to maintain a DAG drawing or status table inside it — both rot. The `specops` CLI regenerates that view on demand.
 3. **Document the protocol in the project's CLAUDE.md** — add a Plans section summarizing the workflow (statuses, closeout commit, Follow-ups taxonomy) and link to `plans/README.md`. The reference doc in this skill is the canonical source; the project CLAUDE.md just needs enough for someone working in the repo to find their way without re-reading the whole reference.
-4. **Run the scripts in-place from the skill.** `scripts/plans-dag` and `scripts/plans-next` are invoked from the skill's install directory against the project's plans/ directory — there's nothing to copy, symlink, or vendor. Claude resolves the skill path automatically when specops triggers; the invocation from the project root is just `<specops-skill-path>/scripts/plans-dag plans/` (or `plans-next`). Both scripts are zero-dep Node.js so they work the moment the skill is checked out.
+4. **Use the `specops` CLI in-place from the skill.** `scripts/specops` is the self-contained bundle shipped with this skill; run it from the skill's install directory against the project's `plans/` — there's nothing to copy, symlink, or vendor, and no `npm install` (it runs on `node ≥ 20`). Claude resolves the skill path automatically when specops triggers; from the project root the invocation is `<specops-skill-path>/scripts/specops next` (or `dag`). Optionally run `<specops-skill-path>/scripts/specops hook install` once so every session in the repo opens with the plans dashboard.
 5. **Establish the convention** in the team: a new chunk of work starts with a plan file; the last commit before merge flips it to `done`. Quick-reference checklist for closeout is in [references/plans-protocol.md](references/plans-protocol.md#quick-checklist-for-a-closeout-pr).
 
 ## Keeping specs alive

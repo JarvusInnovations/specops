@@ -10,7 +10,7 @@ Specs lead; code follows. Every chunk of work starts with a spec update, gets a 
 npx skills add JarvusInnovations/specops
 ```
 
-This repo *is* the skill — `SKILL.md` lives at the root, with supporting material under `references/` and zero-dependency helper scripts under `scripts/`.
+This repo *is* the skill — `SKILL.md` lives at the root, with supporting material under `references/` and the bundled `specops` CLI under `scripts/`.
 
 ## What's inside
 
@@ -20,8 +20,32 @@ This repo *is* the skill — `SKILL.md` lives at the root, with supporting mater
 | [`references/plans-protocol.md`](references/plans-protocol.md) | The full plan protocol: frontmatter schema, body template, status lifecycle, the closeout-commit ritual, and the Follow-ups taxonomy. |
 | [`references/spec-drift-auditor.md`](references/spec-drift-auditor.md) | Agent definition (for `.claude/agents/`) that audits `specs/` against the implementation. |
 | [`references/audit-spec-drift.md`](references/audit-spec-drift.md) | Slash-command definition (for `.claude/commands/`) that launches the auditor. |
-| [`scripts/plans-dag`](scripts/plans-dag) | Emits a Mermaid graph of the plans DAG, styled by status. |
-| [`scripts/plans-next`](scripts/plans-next) | Prints plans ordered by readiness — what to work on next. |
+| [`scripts/specops`](scripts/specops) | The `specops` CLI — a self-contained, committed bundle (`scripts/specops.mjs`) that queries the plans DAG. Built from [`src/cli/`](src/cli/) with `bun run build`. |
+
+## The `specops` CLI
+
+A thin **determinism layer** over the files-first `plans/` workflow: it computes readiness, ordering, the dependency graph, and hygiene warnings *across all plan files* — work an agent can't reliably do by eye — and emits compact [TOON](https://toonformat.dev/). It runs on `node ≥ 20` with no `npm install` (deps are inlined into the committed bundle), so it works the moment the skill is installed.
+
+```bash
+scripts/specops                      # dashboard: what's ready / blocked in ./plans
+scripts/specops next                 # full readiness breakdown (ready / awaiting / blocked)
+scripts/specops next --slugs-only    # ready slugs, one per line (scripting)
+scripts/specops dag --fence          # Mermaid graph of the DAG
+scripts/specops hook install         # load the dashboard into every session of this repo
+```
+
+To read or edit a single plan, open its file — the CLI deliberately has no `view` command.
+
+### Developing the CLI
+
+```bash
+bun install
+bun run build        # rebuild scripts/specops.mjs + splice SKILL.md's command reference
+bun run check        # CI gate: fail if the committed bundle or SKILL.md is stale
+bun run type-check
+```
+
+The bundle is committed and marked `linguist-generated`; commit it together with any `src/cli/` change (`bun run check` enforces this).
 
 ## Core loop
 

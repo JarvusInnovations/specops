@@ -157,7 +157,7 @@ Without `awaits:`, external blockers had to live in prose inside the body — in
 - `status: planned` + non-empty `awaits:` — we haven't started; we already know an external block exists. Work may begin once the block clears, or partially if some of the plan's scope is independent of the block.
 - `status: in-progress` + non-empty `awaits:` — we've done what we can without the awaited thing; the rest of the plan is paused until it lands.
 - `status: blocked` + non-empty `awaits:` — work cannot proceed at all; `awaits:` says why.
-- `status: blocked` + empty `awaits:` — smell. A blocked plan should always say what's blocking it (either via `awaits:`, or unfinished `depends:`, or both). `plans-next` and `plans-dag` emit a stderr warning when they see `status: blocked` with no `awaits:` *and* no unfinished `depends:` — the strongest form of this smell, where nothing structural explains the block.
+- `status: blocked` + empty `awaits:` — smell. A blocked plan should always say what's blocking it (either via `awaits:`, or unfinished `depends:`, or both). `specops next` and `specops dag` surface a warning (on stdout, where the agent sees it) when they find `status: blocked` with no `awaits:` *and* no unfinished `depends:` — the strongest form of this smell, where nothing structural explains the block.
 
 ### Resolution
 
@@ -165,9 +165,9 @@ When the awaited thing happens, delete the matching entry from `awaits:`. Git hi
 
 ### How the scripts treat it
 
-`plans-next` treats `awaits:` as a blocker independent of `depends:`. A plan with non-empty `awaits:` never appears under "Ready to work on" — it surfaces under a separate **Awaiting external** section, with each `awaits:` entry called out. If the plan is *also* blocked by unfinished `depends:`, both reasons are shown.
+`specops next` treats `awaits:` as a blocker independent of `depends:`. A plan with non-empty `awaits:` never appears under `ready` — it surfaces under a separate `awaiting` section, with each `awaits:` entry called out. If the plan is *also* blocked by unfinished `depends:`, both reasons are shown.
 
-`plans-dag` styles nodes with non-empty `awaits:` distinctly (dashed border) so the external dependency is visible in the rendered graph.
+`specops dag` styles nodes with non-empty `awaits:` distinctly (dashed border) so the external dependency is visible in the rendered graph.
 
 ## The closeout commit
 
@@ -261,42 +261,43 @@ Completed plans stay as historical record. Their merged-PR links plus completed-
 
 ## Visualization and status
 
-`plans/README.md` deliberately does not maintain a hand-drawn DAG or status table — they'd rot the moment someone forgot to update them. Instead, two scripts query the authoritative frontmatter on demand:
+`plans/README.md` deliberately does not maintain a hand-drawn DAG or status table — they'd rot the moment someone forgot to update them. Instead, the bundled **`specops` CLI** queries the authoritative frontmatter on demand and emits [TOON](https://toonformat.dev/) (a compact, agent-friendly format). It ships as a self-contained bundle (`scripts/specops.mjs` + a `scripts/specops` shim), runs on `node ≥ 20` with no install, and is built from `src/cli/` with `bun run build`.
 
-### `plans-dag` — DAG visualization
+### `specops dag` — DAG visualization
 
 ```sh
 # print Mermaid syntax to stdout
-scripts/plans-dag plans/
+scripts/specops dag
 
 # wrap in a code fence ready to paste into a Markdown doc
-scripts/plans-dag plans/ --fence
+scripts/specops dag --fence
 
 # horizontal layout
-scripts/plans-dag plans/ --direction LR
+scripts/specops dag --direction LR
 ```
 
 Reads each plan's `status`, `depends`, `pr`, and `awaits` fields and emits a Mermaid `graph` with nodes styled by status (`planned`, `in-progress`, `done`, `blocked`). Plans with non-empty `awaits:` get a dashed border so external blockers are visible at a glance. Use it in code review, in stand-ups, or pasted (and dated) into a wiki snapshot. Don't commit a static rendering into `plans/README.md` — the next status flip will make it lie.
 
-### `plans-next` — what to work on next
+### `specops next` — what to work on next
 
 ```sh
 # show plans that are ready to start (deps met) and plans blocked on unfinished deps
-scripts/plans-next plans/
+scripts/specops next
 
 # include in-progress plans in the listing
-scripts/plans-next plans/ --include-in-progress
+scripts/specops next --include-in-progress
 ```
 
-Skips `done` and `cancelled` plans, then lists what's left in three sections:
+Skips `done` and `cancelled` plans, then lists what's left in TOON sections:
 
-- **Ready** — `depends:` all `done` AND `awaits:` empty.
-- **Awaiting external** — `awaits:` non-empty (regardless of `depends:` state). Each `awaits:` entry is shown beneath the plan so the blocker is clear.
-- **Blocked by unfinished deps** — `depends:` has unfinished entries AND `awaits:` is empty. Each unfinished dep is called out.
+- **`ready`** — `depends:` all `done` AND `awaits:` empty (with an `unblocks` count).
+- **`awaiting`** — `awaits:` non-empty (regardless of `depends:` state). Each `awaits:` entry is shown so the blocker is clear.
+- **`blocked_by_deps`** — `depends:` has unfinished entries AND `awaits:` is empty. Each unfinished dep is called out.
+- **`blocked`** — `status: blocked` plans (lifecycle explicitly blocked).
 
-Within each section, plans are topologically sorted so the plans that unblock the most downstream work appear first.
+Within each section, plans are topologically sorted so the plans that unblock the most downstream work appear first. Running `specops` with no command prints a condensed dashboard of the same data (and is what the optional `specops hook install` SessionStart hook loads each session).
 
-Both scripts share `lib/plans.js` — a frontmatter parser and DAG walker. See [`scripts/`](../scripts/) in this skill.
+Both commands compute over a shared parser/DAG-walker in `src/cli/plans.ts`. See [`src/cli/`](../src/cli/) in this skill; the determinism layer is files-first — to read a single plan, open its file.
 
 ## Worked example: closing a plan
 
