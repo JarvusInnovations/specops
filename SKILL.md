@@ -105,7 +105,7 @@ specs/
     └── <behavior>.md
 ```
 
-**principles.md** — the project's philosophy written down as principles: the decisive, cross-cutting rules that resolve micro-decisions no enumerated rule reaches. Distinct from `architecture.md` (concrete tech and structure choices) — principles are the value judgments that pick a side when two reasonable implementations conflict. A screen or behavior spec with a principle local to it carries its own `## Principles` section instead; `principles.md` is for the ones that apply everywhere.
+**principles.md** — the project's philosophy written down as principles: the decisive, cross-cutting rules that resolve micro-decisions no enumerated rule reaches. Distinct from `architecture.md` (concrete tech and structure choices) — principles are the value judgments that pick a side when two reasonable implementations conflict. A principle local to one screen or behavior lives in that spec's `## Principles` section; `principles.md` holds the ones that apply everywhere — and feature specs reference those down into their own `## Principles` sections.
 
 **screens/** — one file per screen/route. What the user sees and can do at that URL.
 
