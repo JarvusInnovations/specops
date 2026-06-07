@@ -25,6 +25,7 @@ Conduct an exhaustive audit comparing everything in `specs/` against the actual 
    - Frontend views and components
    - Infrastructure requirements
    - Search behavior, validation rules
+   - Principles — from `principles.md` and any `## Principles` sections in specs. These are the project's philosophy written down: decisive cross-cutting rules ("always favor X over Y when they conflict"), not enumerated cases. Capture each one; you'll check whether the implementation honors it.
    - Any other specified behavior
 
 ### Phase 2: Review Commits Since Last Release
@@ -50,6 +51,7 @@ Conduct an exhaustive audit comparing everything in `specs/` against the actual 
 1. For every item defined in specs, check if it exists in implementation and whether it matches.
 2. For every significant implementation detail, check if it's covered in specs.
 3. Identify conflicts where both exist but disagree.
+4. For every principle, check whether the implementation *honors* it. A principle violation is drift even when every enumerated rule is satisfied (e.g. a screen blocks on a network refresh in a codebase whose principle is "offline-first beats fresh"). Report these as Table 3 conflicts, quoting the principle and the violating code.
 
 ## Output Format
 
