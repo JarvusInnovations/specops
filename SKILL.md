@@ -47,6 +47,28 @@ An agent reading this still has to make hundreds of decisions. Which fields? Wha
 
 This is just writing the code twice. The spec rots the moment implementation diverges.
 
+### Encode the philosophy, not just the enumerated rules
+
+**Two words, one idea.** A project's *philosophy* is its guiding **stance** — the *why* behind how it behaves ("we're offline-first"; "the field user comes before the desk analyst"). You write that philosophy down as **principles**: individual, decisively-stated rules, each picking a side of a trade-off. The philosophy is the whole; a principle is a unit of it. So "encode the philosophy" concretely means: *capture its principles where implementers will read them.* Throughout this skill, "philosophy" names the stance and "principle" names the written unit — `principles.md` and the `## Principles` section of a spec hold principles.
+
+Recall why this skill exists: implementers make hundreds of micro-decisions, and the spec is what makes those decisions match intent. Enumerated rules can only cover the decisions you anticipated — the cases you thought to write down. A principle covers the rest: it's a generative rule that resolves the cases no enumeration reaches, the same way the author would have.
+
+The two belong together:
+
+- **Enumerated rule** — "Sort incomplete pathways first, then alphabetical by from_stop_name." Resolves one specific case.
+- **Principle** — "This is a field-data-entry tool used one-handed on a phone in transit stations. When a display or interaction decision is in tension, optimize for the surveyor mid-walk over the analyst at a desk." Resolves every case the enumeration missed — the same way the author would have.
+
+A principle earns its place in a spec only if it's **decisive**: it must pick a side of a real trade-off and rule things out. Compare:
+
+- **Not a principle** (platitude — rules nothing out): "The UI should be clean and user-friendly."
+- **A principle** (decisive — an implementer can act on it): "Prefer showing stale data with a freshness timestamp over blocking the screen on a refresh. A surveyor underground with no signal must always see the last-known state."
+
+The test is the same as for any spec: could two implementers read it and disagree about whether the code conforms? "User-friendly" — yes, so it's useless. "Stale-with-timestamp beats blocking" — no, so it's enforceable.
+
+Where principles live — **default to the most specific spec the principle governs.** A principle that only shapes one screen belongs in that screen spec's `## Principles` section, right next to the rules it backs, where an implementer reading that spec will actually see it. Reserve `principles.md` for the genuinely project-wide ones that no single feature spec owns. When a local principle turns out to govern decisions beyond its home spec, *promote* it to `principles.md` and leave a pointer behind. The concrete trigger to watch for: **the same or a similar principle showing up in a second spec** — that duplication is the signal it's outgrown any one spec, so lift it once and replace both copies with references rather than letting two near-identical statements drift apart. This keeps `principles.md` short and high-signal instead of a dumping ground — and keeps each principle close to the work it steers. Don't agonize over the placement at capture time: put it on the spec you're in, promote later if it spreads.
+
+**Reference the relevant project principles down into each spec.** Promotion sends principles *up*; this is the flow back *down*. Agents (and people) routinely dive into one or two specs without ever opening `principles.md` — so a project-wide principle that quietly governs a screen is invisible to whoever's working on it. Counter this: in a spec's `## Principles` section, **name the `principles.md` entries that especially bite on this spec**, each with a one-line gloss of *how* it applies here, and link to the full statement. The implementer reading just this one spec then inherits the governing principles instead of missing them. Be selective — reference only the principles that genuinely shape this spec's decisions, not the whole list; a spec that links every principle teaches nothing. When you promote a local principle up to `principles.md`, the pointer you leave behind *is* one of these references.
+
 ### What specs should cover
 
 - **Display rules** — what data appears and under what conditions
@@ -55,6 +77,7 @@ This is just writing the code twice. The spec rots the moment implementation div
 - **Navigation** — where you can go from here, where you came from
 - **Business rules** — calculations, state machines, validation logic
 - **API contracts** — request/response shapes, auth, error cases
+- **Principles** — the decisive rules that resolve the unspecified micro-decisions consistently — your philosophy, written down (see [Encode the philosophy](#encode-the-philosophy-not-just-the-enumerated-rules) above)
 
 ### What specs should NOT cover
 
@@ -70,6 +93,7 @@ Organize specs by what they describe, not by when they were written:
 ```
 specs/
 ├── README.md              # Workflow docs, directory layout, format conventions
+├── principles.md          # Project-wide principles — the decisive rules (your philosophy, written down) that resolve unspecified decisions
 ├── architecture.md        # Tech stack, project structure, foundational decisions
 ├── data-model.md          # Schema, field definitions, relationships
 ├── api/                   # One file per endpoint or endpoint group
@@ -80,6 +104,8 @@ specs/
 └── behaviors/             # Cross-cutting rules that span multiple screens
     └── <behavior>.md
 ```
+
+**principles.md** — the project's philosophy written down as principles: the decisive, cross-cutting rules that resolve micro-decisions no enumerated rule reaches. Distinct from `architecture.md` (concrete tech and structure choices) — principles are the value judgments that pick a side when two reasonable implementations conflict. A principle local to one screen or behavior lives in that spec's `## Principles` section; `principles.md` holds the ones that apply everywhere — and feature specs reference those down into their own `## Principles` sections.
 
 **screens/** — one file per screen/route. What the user sees and can do at that URL.
 
@@ -109,6 +135,20 @@ What the user can do and what each action causes.
 
 ## Navigation
 Where you can go from here, where you came from.
+
+## Principles (optional)
+The decisive rules governing this screen — what to favor for any case the rules
+above don't enumerate.
+
+**Inherited** — project principles from `principles.md` that especially bite here:
+- [Offline-first beats fresh](../principles.md#offline-first-beats-fresh) — this screen
+  must render last-known state instantly; treat the live refresh as a background nicety.
+
+**Local** — principles owned by this screen (promote to `principles.md` if they spread):
+- ...
+
+Omit either subsection if empty. Reference only principles that genuinely shape this
+screen's decisions — not the whole list.
 ```
 
 ### Behavior spec
@@ -124,6 +164,12 @@ Which screens or components this behavior affects.
 
 ## Details
 Edge cases, calculations, timing, error handling.
+
+## Principles (optional)
+Same two-part shape as the screen template: **Inherited** — linked `principles.md`
+entries that especially govern this behavior, each with a one-line gloss of how it
+applies; **Local** — the decisive trade-off behind this rule, if any (promote if it
+spreads). Omit either subsection if empty.
 ```
 
 ### API spec
@@ -142,7 +188,35 @@ Success body shape with field types. Error cases.
 
 ## Notes
 Caching, idempotency, offline implications.
+
+## Principles (optional)
+Same two-part shape as the screen template: **Inherited** — linked `principles.md`
+entries that especially govern this endpoint, each with a one-line gloss; **Local** —
+the decisive trade-off for this endpoint (e.g. what to favor when consistency and
+latency conflict), promoted if it spreads. Omit either subsection if empty.
 ```
+
+### Principles (`principles.md`)
+
+```markdown
+# Principles
+
+The project's philosophy, written down as principles. Each is decisive: it picks a
+side of a real trade-off so an implementer can resolve an unspecified case the way
+the author would.
+
+## <Principle name>
+The principle, stated as a rule that rules something out. Include the *why* — the
+context that makes the trade-off land — so a future reader applies it correctly.
+
+> Example: **Offline-first beats fresh.** This tool runs in stations with no signal.
+> When freshness and availability conflict, always show last-known state with a
+> timestamp rather than block on a network round-trip.
+```
+
+Give each principle a short, stable `## <Name>` heading — that heading is its anchor, and feature specs link to it (`principles.md#<name>`) from their `## Principles` sections. References run one direction only: specs point *up* at `principles.md`. Don't maintain a "governed by these specs" list inside `principles.md` — like a hand-drawn DAG, it would rot the moment a spec changed. To find what a principle governs, grep for links to its anchor.
+
+Any screen, behavior, or API spec may also carry an optional `## Principles` section for a principle local to that one spec — same bar (decisive, rules something out). Promote it to `principles.md` once it starts governing decisions beyond that one file.
 
 ## How agents use specs
 
@@ -170,6 +244,23 @@ When implementing a feature or fixing a bug:
 ### When reviewing code
 
 Compare the implementation against the spec, not against your own ideas of how it should work. The spec is the acceptance criteria.
+
+### ALWAYS: watch for decisions and principles that belong in a spec
+
+This is a standing responsibility, not a phase you enter and leave. While doing *any* work — implementing, debugging, reviewing, or just talking a problem through with the user — **stay alert for the moment a key decision gets made or a principle gets resolved** (the project's philosophy crystallizing into a rule you could write down). These moments are easy to miss because they feel like progress, not like spec work:
+
+- The user explains *why* they want something a certain way, revealing a principle that will govern future decisions.
+- A trade-off gets settled in conversation ("always favor X over Y when they conflict").
+- You hit an unspecified case, pick an answer, and that answer implies a general rule.
+- A review comment establishes a convention the whole codebase should follow.
+- A "we'll always / we'll never" sentiment surfaces — almost always a principle in disguise.
+- **You write — or notice — the same (or a barely-reworded) principle in a second spec.** Duplication across specs is the loudest promotion signal there is: the principle has outgrown any one spec. Don't leave two copies to drift apart. Lift it to `principles.md` once, then replace both copies with `## Principles` references to that single entry (see [Encode the philosophy](#encode-the-philosophy-not-just-the-enumerated-rules)). Watch for *similar*, not just identical — two specs that each say "favor the field user over the desk analyst" in different words are the same principle.
+
+When you notice one, **stop and surface it**: name the decision, say whether it reads as an enumerated rule or a principle, and propose exactly where it should be operationalized — defaulting to the most specific spec it governs (a screen/behavior/API spec's rules or its `## Principles` section), and reaching for `principles.md` only when it's genuinely project-wide (see [Encode the philosophy](#encode-the-philosophy-not-just-the-enumerated-rules)). Then make (or propose) that spec change through the normal spec-first flow before it evaporates.
+
+The bar for flagging: **if a decision would change how a *future* implementer resolves a micro-decision, it belongs in a spec.** If it only affected this one line, let it go.
+
+Why this is load-bearing: a decision that lives only in code, a commit message, or a chat scrollback is unspecified behavior the moment the context window closes. The next agent will re-litigate it — possibly differently — and the codebase drifts. This vigilance is what keeps specs *generative* rather than merely descriptive. Specs aren't written once at feature-kickoff and frozen; they accrete the project's resolved judgment, and most of that judgment gets resolved in the middle of doing something else.
 
 ## Plans: the work DAG that bridges specs to code
 
@@ -210,11 +301,12 @@ Both are zero-dependency Node.js scripts — usable the moment the skill is chec
 1. Create a `specs/` directory at the project root
 2. Write `specs/README.md` documenting the workflow and directory layout
 3. Write `specs/architecture.md` with foundational tech decisions
-4. For each feature area, create the relevant spec files before coding
-5. Reference the specs directory in your project's CLAUDE.md or README
-6. Establish the convention: PRs that add features should include spec updates
-7. Set up the spec drift auditor (see below)
-8. Set up the plans protocol (see below)
+4. Write `specs/principles.md` capturing the principles you already hold — your project philosophy written down as decisive "always favor X over Y" trade-offs that should steer every implementer. Seed it with what you know now; it grows as decisions get resolved (see [keeping specs alive](#keeping-specs-alive))
+5. For each feature area, create the relevant spec files before coding
+6. Reference the specs directory in your project's CLAUDE.md or README
+7. Establish the convention: PRs that add features should include spec updates
+8. Set up the spec drift auditor (see below)
+9. Set up the plans protocol (see below)
 
 ### Setting up the spec drift auditor
 
@@ -256,3 +348,4 @@ Specs rot when they diverge from reality. Prevent this by:
 - Periodically auditing specs against the running software
 - Treating spec-code divergence as a bug, not technical debt
 - Having agents read specs before implementing, which creates a natural feedback loop when specs are wrong
+- Capturing decisions and principles *as they're resolved* (see [ALWAYS: watch for decisions and principles that belong in a spec](#always-watch-for-decisions-and-principles-that-belong-in-a-spec)) — most of a project's durable judgment gets resolved mid-task, and a spec only stays alive if that judgment lands in it instead of in a scrollback

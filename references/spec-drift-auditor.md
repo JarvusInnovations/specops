@@ -25,6 +25,7 @@ Conduct an exhaustive audit comparing everything in `specs/` against the actual 
    - Frontend views and components
    - Infrastructure requirements
    - Search behavior, validation rules
+   - Principles — from `principles.md` and any `## Principles` sections in specs. These are the project's philosophy written down: decisive cross-cutting rules ("always favor X over Y when they conflict"), not enumerated cases. Capture each one; you'll check whether the implementation honors it.
    - Any other specified behavior
 
 ### Phase 2: Review Commits Since Last Release
@@ -34,6 +35,7 @@ Conduct an exhaustive audit comparing everything in `specs/` against the actual 
    - Run `git log --oneline <that-tag>..HEAD` to list all subsequent commits.
    - Run `git show --stat` for each commit (or `git diff <that-tag>..HEAD`) to understand what changed.
    - Pay special attention to implementation changes that may have introduced drift without corresponding spec updates — these are the highest-signal findings.
+   - **Read the extended commit message bodies, not just the subjects** (`git log <that-tag>..HEAD` shows full bodies). Commit messages are where decisions and newly-resolved or refined *principles* most often get recorded *instead of* being written into a spec — exactly the "decision lives only in a commit message" leak the specops vigilance warns about. A "we'll always X / never Y" rationale, a settled trade-off, or a design judgment in a commit body is a candidate principle that should be codified. Surface these (as a Table 2 "implemented but not specified" finding, or as a proposed new/refined `principles.md` entry) — they're some of the richest drift the commit history holds.
    - Note any patterns (e.g., a migration changed a column type but the spec still documents the old type).
 2. If no release tags exist, skip this phase and note it in the report.
 
@@ -50,6 +52,7 @@ Conduct an exhaustive audit comparing everything in `specs/` against the actual 
 1. For every item defined in specs, check if it exists in implementation and whether it matches.
 2. For every significant implementation detail, check if it's covered in specs.
 3. Identify conflicts where both exist but disagree.
+4. For every principle, check whether the implementation *honors* it. A principle violation is drift even when every enumerated rule is satisfied (e.g. a screen blocks on a network refresh in a codebase whose principle is "offline-first beats fresh"). Report these as Table 3 conflicts, quoting the principle and the violating code. Unlike a column-type mismatch, these are **judgment calls, not mechanical matches** — quote enough of both sides that a reviewer can decide for themselves, and when you're uncertain whether something truly violates the principle, say so rather than asserting a violation. Better a flagged "worth a look" than a false positive that erodes trust in the audit.
 
 ## Output Format
 

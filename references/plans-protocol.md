@@ -94,7 +94,9 @@ Not prescriptive; helps the implementer know what to watch for.
 
 ## Notes
 (Populated at closeout. Non-actionable carry-forwards: decisions made, gotchas
-discovered, dependency surprises, version pins worth remembering.)
+discovered, dependency surprises, version pins worth remembering. But if a decision
+recorded here is actually a *governing principle* that will shape future work, it
+doesn't belong frozen in a plan — promote it to a spec; see "Relationship to specs/".)
 
 ## Follow-ups
 (Populated at closeout. See "Follow-ups taxonomy" below.)
@@ -243,6 +245,7 @@ Plans implement specs. Concretely:
 - **Specs come first.** If you realize a spec needs to change mid-plan, the spec change is its own PR before the plan continues. Don't quietly drift the spec to match what you ended up coding.
 - **Plans don't propose specs.** Specs are decided through their own review process. A plan's job is execution against an already-agreed-on state.
 - **The spec-drift auditor reads `specs/`, never `plans/`.** Plans rot fast and are expected to. Specs are the auditable source of truth.
+- **Durable judgment belongs in specs, not frozen in plan Notes.** Closeout Notes capture decisions and gotchas — but a plan freezes, and a *governing principle* buried in a frozen plan is invisible to the next agent, who will re-litigate it. If a decision made during the plan will shape *future* work (not just record what happened in this one), promote it to the relevant spec or `principles.md` through the spec's own PR (per "Specs come first" above), and let the plan Note just point to it. This is the plans-side of the standing vigilance in [specops: ALWAYS watch for decisions and principles that belong in a spec](../SKILL.md#always-watch-for-decisions-and-principles-that-belong-in-a-spec).
 
 ## After spec-complete
 
@@ -335,6 +338,7 @@ Suppose `workspace.md` ships scaffolding and discovers `.env.example` is natural
 - [ ] Any `awaits:` entries either resolved (deleted) or explicitly justified in Notes (rare — usually means the block stopped being load-bearing or was worked around)
 - [ ] Every Validation box reflects reality (`[x]` only if verified; unverified stays `[ ]` with a Notes entry)
 - [ ] Notes section populated (decisions, gotchas, version pins — not action items)
+- [ ] Any decision in Notes that's actually a durable governing principle has been promoted to a spec / `principles.md` (or filed as a follow-up to do so), not left to rot in the frozen plan
 - [ ] Follow-ups section populated (Issue / Deferred to plan / Tracked as / None)
 - [ ] Every `Deferred to <plan>` has an accompanying edit to that downstream plan, in the same commit, and the downstream plan is still `planned`
 - [ ] Commit message: `chore(plans): mark <slug> done (PR #<n>)`
