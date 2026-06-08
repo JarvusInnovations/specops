@@ -52,6 +52,25 @@ The work-tracking tools — agent **plan mode** (Claude Code, Cursor), **[Task M
 | [`references/audit-spec-drift.md`](references/audit-spec-drift.md) | Slash-command definition (for `.claude/commands/`) that launches the auditor. |
 | [`scripts/specops`](scripts/specops) | The `specops` CLI — a self-contained, committed bundle (`scripts/specops.mjs`) that queries the plans DAG. Built from [`src/cli/`](src/cli/) with `bun run build`. |
 
+## Set up specops in your project
+
+You don't wire specops up by hand. Once the skill is installed, point the agent at your project with a single holistic prompt — it works for a new or existing codebase:
+
+```
+/specops set this project up for spec-driven development: scaffold specs/ and plans/,
+seed principles.md and architecture.md from what we already know, wire up the
+spec-drift auditor, and install the project-level plans dashboard session hook.
+(For an existing codebase, reverse-engineer the starting specs from the current code.)
+```
+
+The agent follows the skill's setup flow — see [`SKILL.md`](SKILL.md) for the full checklist.
+
+### The plans dashboard session hook
+
+Part of that setup is a **SessionStart hook** so every agent session in the repo opens with the plans dashboard — ready / blocked / recently completed — letting an agent (or person) see the state of the work-in-flight DAG from turn one, without running anything.
+
+It's **project-scoped**: written to the repo's `.claude/settings.json`, it fires only for sessions in that repo and reads that repo's `plans/`. Commit that file and every contributor's sessions open with the same dashboard — the same share-with-the-team logic as installing the skill per-project. (A global variant that fires for every session on your machine exists too, but the project hook is what keeps a team in sync.)
+
 ## The `specops` CLI
 
 A thin **determinism layer** over the files-first `plans/` workflow: it computes readiness, ordering, the dependency graph, and hygiene warnings *across all plan files* — work an agent can't reliably do by eye — and emits compact [TOON](https://toonformat.dev/). It runs on `node ≥ 20` with no `npm install` (deps are inlined into the committed bundle), so it works the moment the skill is installed.
@@ -61,7 +80,6 @@ scripts/specops                      # dashboard: ready / blocked / recently com
 scripts/specops next                 # full readiness breakdown (ready / awaiting / blocked)
 scripts/specops next --slugs-only    # ready slugs, one per line (scripting)
 scripts/specops dag --fence          # Mermaid graph of the DAG
-scripts/specops hook install         # load the dashboard into every session of this repo
 ```
 
 To read or edit a single plan, open its file — the CLI deliberately has no `view` command.
