@@ -9,8 +9,11 @@ Why specs and not docs: an implementer — human or agent — makes hundreds of 
 ## Install
 
 ```bash
-npx skills add JarvusInnovations/specops
+npx skills add JarvusInnovations/specops            # into the current project (recommended)
+npx skills add JarvusInnovations/specops --global   # once, at the user level
 ```
+
+**Install per-project and commit it.** A project-level install drops the skill into the repo, so the methodology travels with the codebase and every contributor — and every agent they run — works against the same spec-and-plan practices. Installing globally only configures *your* machine; teammates wouldn't get it. Reach for `--global` for solo use or to try specops out across repos.
 
 This repo *is* the skill — `SKILL.md` lives at the root, with supporting material under `references/` and the bundled `specops` CLI under `scripts/`.
 
