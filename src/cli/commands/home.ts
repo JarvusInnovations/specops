@@ -101,6 +101,7 @@ export async function homeCommand(args: string[]): Promise<string> {
     renderHelp([
       `Run \`${cli} next\` for the full readiness breakdown`,
       `Run \`${cli} dag --fence\` to visualize the dependency graph`,
+      `Run \`${cli} --help\` to see the full command list`,
     ]),
   );
 

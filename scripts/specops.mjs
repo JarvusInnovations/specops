@@ -1116,7 +1116,8 @@ async function homeCommand(args) {
   blocks.push(
     renderHelp([
       `Run \`${cli} next\` for the full readiness breakdown`,
-      `Run \`${cli} dag --fence\` to visualize the dependency graph`
+      `Run \`${cli} dag --fence\` to visualize the dependency graph`,
+      `Run \`${cli} --help\` to see the full command list`
     ])
   );
   return renderOutput2(blocks);
@@ -1517,7 +1518,7 @@ function status() {
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.0.0-2-g841b87b" : "dev";
+var VERSION = true ? "v1.0.0-3-g140d918" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:
