@@ -304,7 +304,7 @@ The full protocol — frontmatter schema, body template, status lifecycle, the c
 
 <!-- END GENERATED: command-reference -->
 
-Run with no command (`scripts/specops`) for the current repo's plans dashboard — a readiness summary, what's ready, and what's blocked. Hygiene warnings (dangling deps, a `status: blocked` plan with nothing recorded as blocking it) are surfaced on stdout where the agent will see them.
+Run with no command (`scripts/specops`) for the current repo's plans dashboard — a readiness summary, what's ready, what's blocked, and the last few plans completed (their dates read from git history, when the repo is a git checkout). Hygiene warnings (dangling deps, a `status: blocked` plan with nothing recorded as blocking it) are surfaced on stdout where the agent will see them.
 
 The CLI is a **thin determinism layer over a files-first workflow**: it computes readiness, ordering, the dependency graph, and warnings *across all plan files* — work an agent can't reliably do by eye. To read or edit a single plan, open its file directly; there is deliberately no `view`/`show` command.
 

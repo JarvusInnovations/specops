@@ -27,7 +27,7 @@ This repo *is* the skill — `SKILL.md` lives at the root, with supporting mater
 A thin **determinism layer** over the files-first `plans/` workflow: it computes readiness, ordering, the dependency graph, and hygiene warnings *across all plan files* — work an agent can't reliably do by eye — and emits compact [TOON](https://toonformat.dev/). It runs on `node ≥ 20` with no `npm install` (deps are inlined into the committed bundle), so it works the moment the skill is installed.
 
 ```bash
-scripts/specops                      # dashboard: what's ready / blocked in ./plans
+scripts/specops                      # dashboard: ready / blocked / recently completed in ./plans
 scripts/specops next                 # full readiness breakdown (ready / awaiting / blocked)
 scripts/specops next --slugs-only    # ready slugs, one per line (scripting)
 scripts/specops dag --fence          # Mermaid graph of the DAG

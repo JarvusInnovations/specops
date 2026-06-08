@@ -1018,7 +1018,67 @@ function joinDeps(c) {
   return c.openDeps.length ? c.openDeps.join("; ") : "none";
 }
 
+// src/cli/git.ts
+import { execFileSync } from "node:child_process";
+var UNIT = "";
+function recentlyDone(plansDir, doneSlugs, limit) {
+  if (doneSlugs.length === 0 || limit <= 0) return [];
+  let out;
+  try {
+    out = execFileSync(
+      "git",
+      [
+        "log",
+        "-p",
+        "-U0",
+        "--no-color",
+        "-G",
+        "status:",
+        `--format=${UNIT}%H %cs`,
+        "--",
+        ...doneSlugs.map((s) => `${s}.md`)
+      ],
+      {
+        cwd: plansDir,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 32 * 1024 * 1024
+      }
+    );
+  } catch {
+    return [];
+  }
+  const wanted = new Set(doneSlugs);
+  const seen = /* @__PURE__ */ new Set();
+  const results = [];
+  let commit = "";
+  let date = "";
+  let file;
+  for (const line of out.split("\n")) {
+    if (line.startsWith(UNIT)) {
+      const sp = line.indexOf(" ");
+      commit = line.slice(1, sp);
+      date = line.slice(sp + 1).trim();
+      file = void 0;
+      continue;
+    }
+    if (line.startsWith("+++ ")) {
+      const m = line.match(/([^/\s]+)\.md/);
+      file = m ? m[1] : void 0;
+      continue;
+    }
+    if (line.startsWith("--- ")) continue;
+    if (file && !seen.has(file) && wanted.has(file) && /^\+status:\s*done\b/.test(line)) {
+      seen.add(file);
+      results.push({ slug: file, date, commit });
+      if (results.length >= limit) break;
+    }
+  }
+  return results;
+}
+
 // src/cli/commands/home.ts
+var RECENT_DONE_LIMIT = 3;
 async function homeCommand(args) {
   const parsed = parseArgs(args, []);
   const dir = resolvePlansDir(parsed);
@@ -1056,6 +1116,20 @@ async function homeCommand(args) {
       renderList(
         "blocked",
         blocked.map((c) => ({ slug: c.plan.slug, why: whyBlocked(c) }))
+      )
+    );
+  }
+  const recent = recentlyDone(
+    dir,
+    a.done.map((p) => p.slug),
+    RECENT_DONE_LIMIT
+  );
+  if (recent.length) {
+    const prBySlug = new Map(a.done.map((p) => [p.slug, p.pr]));
+    blocks.push(
+      renderList(
+        "recently_done",
+        recent.map((r) => ({ slug: r.slug, done: r.date, pr: prBySlug.get(r.slug) ?? null }))
       )
     );
   }

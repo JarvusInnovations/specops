@@ -3,6 +3,10 @@ import { analyzePlans, plansDirExists, type Classified } from "../plans.js";
 import { renderObject, renderList, renderLines, renderHelp, renderOutput } from "../toon.js";
 import { cliInvocation } from "../invocation.js";
 import { resolvePlansDir, collapseHome, summaryLine, commandReferenceText } from "./common.js";
+import { recentlyDone } from "../git.js";
+
+/** How many recently-completed plans to surface in the dashboard. */
+const RECENT_DONE_LIMIT = 3;
 
 /**
  * Home view (no-args) — the plans dashboard for the current repo. Cheap (local
@@ -54,6 +58,24 @@ export async function homeCommand(args: string[]): Promise<string> {
       renderList(
         "blocked",
         blocked.map((c) => ({ slug: c.plan.slug, why: whyBlocked(c) })),
+      ),
+    );
+  }
+
+  // Backward-looking momentum: the last few plans to land, by completion date
+  // (derived from git history, not commit messages). Best-effort — omitted when
+  // not a git repo or nothing is done.
+  const recent = recentlyDone(
+    dir,
+    a.done.map((p) => p.slug),
+    RECENT_DONE_LIMIT,
+  );
+  if (recent.length) {
+    const prBySlug = new Map(a.done.map((p) => [p.slug, p.pr]));
+    blocks.push(
+      renderList(
+        "recently_done",
+        recent.map((r) => ({ slug: r.slug, done: r.date, pr: prBySlug.get(r.slug) ?? null })),
       ),
     );
   }
