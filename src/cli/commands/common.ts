@@ -2,7 +2,6 @@ import { resolve } from "node:path";
 import { homedir } from "node:os";
 import type { ParsedArgs } from "../args.js";
 import { plansDirArg } from "../args.js";
-import { COMMAND_GROUPS } from "../reference.js";
 import type { Analysis, Classified } from "../plans.js";
 
 /** Absolute plans directory from --dir / positional / default ./plans. */
@@ -23,14 +22,6 @@ export function summaryLine(a: Analysis): string {
     `${a.awaiting.length} awaiting · ${a.blockedByDeps.length} blocked-by-deps · ` +
     `${a.blockedByStatus.length} blocked · ${a.done.length} done · ${a.cancelled.length} cancelled`
   );
-}
-
-/** Plain-text command reference for the home view (same source as SKILL.md). */
-export function commandReferenceText(cli: string): string {
-  const groups = COMMAND_GROUPS.map(
-    (g) => `${g.group}:\n${g.commands.map((c) => `  ${cli} ${c.usage}`).join("\n")}`,
-  );
-  return `commands:\n${groups.join("\n")}`;
 }
 
 export function joinAwaits(c: Classified): string {

@@ -2,7 +2,7 @@ import { parseArgs } from "../args.js";
 import { analyzePlans, plansDirExists, type Classified } from "../plans.js";
 import { renderObject, renderList, renderLines, renderHelp, renderOutput } from "../toon.js";
 import { cliInvocation } from "../invocation.js";
-import { resolvePlansDir, collapseHome, summaryLine, commandReferenceText } from "./common.js";
+import { resolvePlansDir, collapseHome, summaryLine } from "./common.js";
 import { recentlyDone } from "../git.js";
 
 /** How many recently-completed plans to surface in the dashboard. */
@@ -22,7 +22,6 @@ export async function homeCommand(args: string[]): Promise<string> {
   if (!plansDirExists(dir)) {
     return renderOutput([
       renderObject({ plans: `no plans/ directory in ${collapseHome(dir)}` }),
-      commandReferenceText(cli),
       renderHelp([
         "This repo has no plans/ yet — add one to track work-in-flight (see references/plans-protocol.md)",
         `Run \`${cli} --help\` for usage`,
@@ -34,8 +33,10 @@ export async function homeCommand(args: string[]): Promise<string> {
   if (a.plans.size === 0) {
     return renderOutput([
       renderObject({ plans: `0 plan files in ${collapseHome(dir)}` }),
-      commandReferenceText(cli),
-      renderHelp(["Add a plan file under plans/ to begin (see references/plans-protocol.md)"]),
+      renderHelp([
+        "Add a plan file under plans/ to begin (see references/plans-protocol.md)",
+        `Run \`${cli} --help\` for usage`,
+      ]),
     ]);
   }
 
@@ -84,7 +85,6 @@ export async function homeCommand(args: string[]): Promise<string> {
     blocks.push(renderLines("warnings", a.warnings));
   }
 
-  blocks.push(commandReferenceText(cli));
   blocks.push(
     renderHelp([
       `Run \`${cli} next\` for the full readiness breakdown`,

@@ -626,30 +626,6 @@ function computeSessionStartHookUpdate(settings, spec) {
 
 // src/cli/reference.ts
 var DESCRIPTION = "Query the SpecOps plans DAG for the current repo \u2014 what's ready to work on, what's blocked, and the dependency graph. A thin determinism layer over a files-first plans/ workflow.";
-var COMMAND_GROUPS = [
-  {
-    group: "Plans",
-    commands: [
-      {
-        usage: "next [--include-in-progress] [--slugs-only] [--dir <path>]",
-        summary: "Plans ordered by readiness \u2014 ready (deps met, nothing awaited) first, then awaiting-external and blocked, with what unblocks the most work on top."
-      },
-      {
-        usage: "dag [--direction TB|LR|BT|RL] [--fence] [--include-cancelled] [--dir <path>]",
-        summary: "Mermaid graph of the plans DAG, nodes styled by status, external blockers dashed."
-      }
-    ]
-  },
-  {
-    group: "Session",
-    commands: [
-      {
-        usage: "hook install [--scope project|global] [--dir <path>] | hook status | hook uninstall [--scope project|global]",
-        summary: "Manage the SessionStart hook that loads this repo's plans dashboard at the start of every agent session."
-      }
-    ]
-  }
-];
 
 // src/cli/args.ts
 function parseArgs(args, booleanFlags = []) {
@@ -1003,14 +979,6 @@ function collapseHome2(p) {
 function summaryLine(a) {
   return `${a.ready.length} ready \xB7 ${a.inProgress.length} in-progress \xB7 ${a.awaiting.length} awaiting \xB7 ${a.blockedByDeps.length} blocked-by-deps \xB7 ${a.blockedByStatus.length} blocked \xB7 ${a.done.length} done \xB7 ${a.cancelled.length} cancelled`;
 }
-function commandReferenceText(cli) {
-  const groups = COMMAND_GROUPS.map(
-    (g) => `${g.group}:
-${g.commands.map((c) => `  ${cli} ${c.usage}`).join("\n")}`
-  );
-  return `commands:
-${groups.join("\n")}`;
-}
 function joinAwaits(c) {
   return c.plan.awaits.join("; ");
 }
@@ -1086,7 +1054,6 @@ async function homeCommand(args) {
   if (!plansDirExists(dir)) {
     return renderOutput2([
       renderObject({ plans: `no plans/ directory in ${collapseHome2(dir)}` }),
-      commandReferenceText(cli),
       renderHelp([
         "This repo has no plans/ yet \u2014 add one to track work-in-flight (see references/plans-protocol.md)",
         `Run \`${cli} --help\` for usage`
@@ -1097,8 +1064,10 @@ async function homeCommand(args) {
   if (a.plans.size === 0) {
     return renderOutput2([
       renderObject({ plans: `0 plan files in ${collapseHome2(dir)}` }),
-      commandReferenceText(cli),
-      renderHelp(["Add a plan file under plans/ to begin (see references/plans-protocol.md)"])
+      renderHelp([
+        "Add a plan file under plans/ to begin (see references/plans-protocol.md)",
+        `Run \`${cli} --help\` for usage`
+      ])
     ]);
   }
   const blocks = [renderObject({ summary: summaryLine(a) })];
@@ -1136,7 +1105,6 @@ async function homeCommand(args) {
   if (a.warnings.length) {
     blocks.push(renderLines("warnings", a.warnings));
   }
-  blocks.push(commandReferenceText(cli));
   blocks.push(
     renderHelp([
       `Run \`${cli} next\` for the full readiness breakdown`,
@@ -1541,7 +1509,7 @@ function status() {
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.0.0" : "dev";
+var VERSION = true ? "v1.0.0-1-ga51a3bb" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:
