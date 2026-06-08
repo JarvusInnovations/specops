@@ -1518,7 +1518,7 @@ function status() {
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.0.0-5-g91adba0" : "dev";
+var VERSION = true ? "v1.1.0" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:
