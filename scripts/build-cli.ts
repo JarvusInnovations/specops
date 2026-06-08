@@ -17,7 +17,7 @@ import * as esbuild from "esbuild";
 import { readFileSync, chmodSync } from "node:fs";
 import { execSync } from "node:child_process";
 
-const OUTFILE = "scripts/specops.mjs";
+const OUTFILE = "skills/specops/scripts/specops.mjs";
 const check = process.argv.includes("--check");
 
 function gitVersion(): string {

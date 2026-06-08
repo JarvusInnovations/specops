@@ -1,7 +1,7 @@
 /**
  * Splice the generated regions (currently just the command reference) into the
- * hand-authored SKILL.md at the repo root. The methodology prose outside the
- * markers is never touched.
+ * hand-authored skill manifest at skills/specops/SKILL.md. The methodology prose
+ * outside the markers is never touched.
  *
  *   bun scripts/build-skill.ts            # rewrite SKILL.md
  *   bun scripts/build-skill.ts --check    # fail if SKILL.md is stale
@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { spliceGeneratedRegions } from "../src/cli/skill.js";
 
-const PATH = new URL("../SKILL.md", import.meta.url);
+const PATH = new URL("../skills/specops/SKILL.md", import.meta.url);
 const check = process.argv.includes("--check");
 
 const src = readFileSync(PATH, "utf8");
