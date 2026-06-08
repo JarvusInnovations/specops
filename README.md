@@ -17,6 +17,36 @@ npx skills add JarvusInnovations/specops --global   # once, at the user level
 
 This repo *is* the skill — `SKILL.md` lives at the root, with supporting material under `references/` and the bundled `specops` CLI under `scripts/`.
 
+## Set up specops in your project
+
+You don't wire specops up by hand. Once the skill is installed, point the agent at your project with a single holistic prompt — it works for a new or existing codebase:
+
+```
+/specops set this project up for spec-driven development: scaffold specs/ and plans/,
+seed principles.md and architecture.md from what we already know, wire up the
+spec-drift auditor, and install the project-level plans dashboard session hook.
+(For an existing codebase, reverse-engineer the starting specs from the current code.)
+```
+
+The agent follows the skill's setup flow — see [`SKILL.md`](SKILL.md) for the full checklist.
+
+### The plans dashboard session hook
+
+Part of that setup is a **SessionStart hook** so every agent session in the repo opens with the plans dashboard — ready / blocked / recently completed — letting an agent (or person) see the state of the work-in-flight DAG from turn one, without running anything.
+
+It's **project-scoped**: written to the repo's `.claude/settings.json`, it fires only for sessions in that repo and reads that repo's `plans/`. Commit that file and every contributor's sessions open with the same dashboard — the same share-with-the-team logic as installing the skill per-project. (A global variant that fires for every session on your machine exists too, but the project hook is what keeps a team in sync.)
+
+## Core loop
+
+```
+1. Spec change  →  propose what should be true
+2. Accept       →  reviewer agrees on desired state
+3. Implement    →  bring code into conformance
+4. Verify       →  compare running software to spec
+```
+
+See [`SKILL.md`](SKILL.md) for the full methodology, and `references/plans-protocol.md` for the plan protocol that bridges specs to merged code.
+
 ## How specops differs
 
 specops makes one opinionated bet: **a spec declares the complete desired state and stays authoritative for the life of the system, while a separate, temporal plan micro-DAG tracks the motion from spec to merged code and freezes as historical record once merged.** Most tools collapse these two layers — treating the spec as a scaffold consumed to generate code, or keeping only the temporal plan — and most leave governing principles and spec↔code drift to commit messages and review. The chart below maps where a representative handful of tools sit on the axes specops cares about; it's an honest map of the design space, not a scoreboard — several tools are stronger than specops on individual axes (notably BDD on drift enforcement, and Spec Kit and Kiro on agent/IDE integration).
@@ -42,35 +72,6 @@ The work-tracking tools — agent **plan mode** (Claude Code, Cursor), **[Task M
 [tm]: https://github.com/eyaltoledano/claude-task-master
 [beads]: https://github.com/steveyegge/beads
 
-## What's inside
-
-| Path | What it is |
-| --- | --- |
-| [`SKILL.md`](SKILL.md) | The skill itself — philosophy, how to write specs (including encoding principles), the spec directory structure, and how agents use specs. |
-| [`references/plans-protocol.md`](references/plans-protocol.md) | The full plan protocol: frontmatter schema, body template, status lifecycle, the closeout-commit ritual, and the Follow-ups taxonomy. |
-| [`references/spec-drift-auditor.md`](references/spec-drift-auditor.md) | Agent definition (for `.claude/agents/`) that audits `specs/` against the implementation. |
-| [`references/audit-spec-drift.md`](references/audit-spec-drift.md) | Slash-command definition (for `.claude/commands/`) that launches the auditor. |
-| [`scripts/specops`](scripts/specops) | The `specops` CLI — a self-contained, committed bundle (`scripts/specops.mjs`) that queries the plans DAG. Built from [`src/cli/`](src/cli/) with `bun run build`. |
-
-## Set up specops in your project
-
-You don't wire specops up by hand. Once the skill is installed, point the agent at your project with a single holistic prompt — it works for a new or existing codebase:
-
-```
-/specops set this project up for spec-driven development: scaffold specs/ and plans/,
-seed principles.md and architecture.md from what we already know, wire up the
-spec-drift auditor, and install the project-level plans dashboard session hook.
-(For an existing codebase, reverse-engineer the starting specs from the current code.)
-```
-
-The agent follows the skill's setup flow — see [`SKILL.md`](SKILL.md) for the full checklist.
-
-### The plans dashboard session hook
-
-Part of that setup is a **SessionStart hook** so every agent session in the repo opens with the plans dashboard — ready / blocked / recently completed — letting an agent (or person) see the state of the work-in-flight DAG from turn one, without running anything.
-
-It's **project-scoped**: written to the repo's `.claude/settings.json`, it fires only for sessions in that repo and reads that repo's `plans/`. Commit that file and every contributor's sessions open with the same dashboard — the same share-with-the-team logic as installing the skill per-project. (A global variant that fires for every session on your machine exists too, but the project hook is what keeps a team in sync.)
-
 ## The `specops` CLI
 
 A thin **determinism layer** over the files-first `plans/` workflow: it computes readiness, ordering, the dependency graph, and hygiene warnings *across all plan files* — work an agent can't reliably do by eye — and emits compact [TOON](https://toonformat.dev/). It runs on `node ≥ 20` with no `npm install` (deps are inlined into the committed bundle), so it works the moment the skill is installed.
@@ -95,13 +96,13 @@ bun run type-check
 
 The bundle is committed and marked `linguist-generated`; commit it together with any `src/cli/` change (`bun run check` enforces this).
 
-## Core loop
+## What's inside
 
-```
-1. Spec change  →  propose what should be true
-2. Accept       →  reviewer agrees on desired state
-3. Implement    →  bring code into conformance
-4. Verify       →  compare running software to spec
-```
-
-See [`SKILL.md`](SKILL.md) for the full methodology, and `references/plans-protocol.md` for the plan protocol that bridges specs to merged code.
+| Path | What it is |
+| --- | --- |
+| [`SKILL.md`](SKILL.md) | The skill itself — philosophy, how to write specs (including encoding principles), the spec directory structure, and how agents use specs. |
+| [`references/plans-protocol.md`](references/plans-protocol.md) | The full plan protocol: frontmatter schema, body template, status lifecycle, the closeout-commit ritual, and the Follow-ups taxonomy. |
+| [`references/spec-drift-auditor.md`](references/spec-drift-auditor.md) | Agent definition (for `.claude/agents/`) that audits `specs/` against the implementation. |
+| [`references/audit-spec-drift.md`](references/audit-spec-drift.md) | Slash-command definition (for `.claude/commands/`) that launches the auditor. |
+| [`references/spec-driven-landscape.md`](references/spec-driven-landscape.md) | The research note behind [How specops differs](#how-specops-differs): per-tool stances and sources across the spec-driven landscape. |
+| [`scripts/specops`](scripts/specops) | The `specops` CLI — a self-contained, committed bundle (`scripts/specops.mjs`) that queries the plans DAG. Built from [`src/cli/`](src/cli/) with `bun run build`. |
