@@ -1071,6 +1071,14 @@ async function homeCommand(args) {
     ]);
   }
   const blocks = [renderObject({ summary: summaryLine(a) })];
+  if (a.inProgress.length) {
+    blocks.push(
+      renderList(
+        "in_progress",
+        a.inProgress.map((r) => ({ slug: r.plan.slug, unblocks: a.downstream.get(r.plan.slug) || 0 }))
+      )
+    );
+  }
   if (a.ready.length) {
     blocks.push(
       renderList(
@@ -1509,7 +1517,7 @@ function status() {
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.0.0-1-ga51a3bb" : "dev";
+var VERSION = true ? "v1.0.0-2-g841b87b" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:

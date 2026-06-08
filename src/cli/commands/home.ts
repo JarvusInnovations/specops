@@ -42,6 +42,18 @@ export async function homeCommand(args: string[]): Promise<string> {
 
   const blocks: string[] = [renderObject({ summary: summaryLine(a) })];
 
+  // What's actively mid-flight — the most relevant "state right now" for a
+  // session dashboard. (`next` hides these by default since it answers "what to
+  // start"; home is a state overview, so it shows them.)
+  if (a.inProgress.length) {
+    blocks.push(
+      renderList(
+        "in_progress",
+        a.inProgress.map((r) => ({ slug: r.plan.slug, unblocks: a.downstream.get(r.plan.slug) || 0 })),
+      ),
+    );
+  }
+
   if (a.ready.length) {
     blocks.push(
       renderList(
