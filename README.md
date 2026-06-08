@@ -15,7 +15,7 @@ npx skills add JarvusInnovations/specops --global   # once, at the user level
 
 **Install per-project and commit it.** A project-level install drops the skill into the repo, so the methodology travels with the codebase and every contributor — and every agent they run — works against the same spec-and-plan practices. Installing globally only configures *your* machine; teammates wouldn't get it. Reach for `--global` for solo use or to try specops out across repos.
 
-This repo *is* the skill — `SKILL.md` lives at the root, with supporting material under `references/` and the bundled `specops` CLI under `scripts/`.
+The skill lives under [`skills/specops/`](skills/specops/) — `SKILL.md` plus its `references/` and the bundled `specops` CLI under `scripts/`. **That subtree is all that installs into your project**; the rest of this repo (`src/cli/`, build scripts, tests, this README) only builds and maintains it.
 
 ## Set up specops in your project
 
@@ -28,7 +28,7 @@ spec-drift auditor, and install the project-level plans dashboard session hook.
 (For an existing codebase, reverse-engineer the starting specs from the current code.)
 ```
 
-The agent follows the skill's setup flow — see [`SKILL.md`](SKILL.md) for the full checklist.
+The agent follows the skill's setup flow — see [`SKILL.md`](skills/specops/SKILL.md) for the full checklist.
 
 ### The plans dashboard session hook
 
@@ -45,7 +45,7 @@ It's **project-scoped**: written to the repo's `.claude/settings.json`, it fires
 4. Verify       →  compare running software to spec
 ```
 
-See [`SKILL.md`](SKILL.md) for the full methodology, and `references/plans-protocol.md` for the plan protocol that bridges specs to merged code.
+See [`SKILL.md`](skills/specops/SKILL.md) for the full methodology, and `skills/specops/references/plans-protocol.md` for the plan protocol that bridges specs to merged code.
 
 ## How specops differs
 
@@ -67,7 +67,7 @@ specops makes one opinionated bet: **a spec declares the complete desired state 
 [bdd]: https://cucumber.io/docs/bdd/
 [adr]: https://martinfowler.com/bliki/ArchitectureDecisionRecord.html
 
-The work-tracking tools — agent **plan mode** (Claude Code, Cursor), **[Task Master][tm]**, and **[beads][beads]** — are left out of the chart on purpose: they have no desired-state spec layer, so the honest comparison is against specops' *plans* protocol, not its specs. All three live entirely in specops' temporal half (beads' git-native dependency graph is the closest prior art to the plans micro-DAG, and arguably more sophisticated on the pure work-graph axis). The full reasoning, per-tool stances, and sources are in [`references/spec-driven-landscape.md`](references/spec-driven-landscape.md).
+The work-tracking tools — agent **plan mode** (Claude Code, Cursor), **[Task Master][tm]**, and **[beads][beads]** — are left out of the chart on purpose: they have no desired-state spec layer, so the honest comparison is against specops' *plans* protocol, not its specs. All three live entirely in specops' temporal half (beads' git-native dependency graph is the closest prior art to the plans micro-DAG, and arguably more sophisticated on the pure work-graph axis). The full reasoning, per-tool stances, and sources are in [`docs/spec-driven-landscape.md`](docs/spec-driven-landscape.md).
 
 [tm]: https://github.com/eyaltoledano/claude-task-master
 [beads]: https://github.com/steveyegge/beads
@@ -77,10 +77,10 @@ The work-tracking tools — agent **plan mode** (Claude Code, Cursor), **[Task M
 A thin **determinism layer** over the files-first `plans/` workflow: it computes readiness, ordering, the dependency graph, and hygiene warnings *across all plan files* — work an agent can't reliably do by eye — and emits compact [TOON](https://toonformat.dev/). It runs on `node ≥ 20` with no `npm install` (deps are inlined into the committed bundle), so it works the moment the skill is installed.
 
 ```bash
-scripts/specops                      # dashboard: ready / blocked / recently completed in ./plans
-scripts/specops next                 # full readiness breakdown (ready / awaiting / blocked)
-scripts/specops next --slugs-only    # ready slugs, one per line (scripting)
-scripts/specops dag --fence          # Mermaid graph of the DAG
+skills/specops/scripts/specops                    # dashboard: ready / blocked / recently completed in ./plans
+skills/specops/scripts/specops next               # full readiness breakdown (ready / awaiting / blocked)
+skills/specops/scripts/specops next --slugs-only  # ready slugs, one per line (scripting)
+skills/specops/scripts/specops dag --fence        # Mermaid graph of the DAG
 ```
 
 To read or edit a single plan, open its file — the CLI deliberately has no `view` command.
@@ -89,7 +89,7 @@ To read or edit a single plan, open its file — the CLI deliberately has no `vi
 
 ```bash
 bun install
-bun run build        # rebuild scripts/specops.mjs + splice SKILL.md's command reference
+bun run build        # rebuild skills/specops/scripts/specops.mjs + splice its SKILL.md command reference
 bun run check        # CI gate: fail if the committed bundle or SKILL.md is stale
 bun run type-check
 ```
@@ -98,11 +98,14 @@ The bundle is committed and marked `linguist-generated`; commit it together with
 
 ## What's inside
 
+Everything under `skills/specops/` installs into a project; the rest is repo-only build and reference material.
+
 | Path | What it is |
 | --- | --- |
-| [`SKILL.md`](SKILL.md) | The skill itself — philosophy, how to write specs (including encoding principles), the spec directory structure, and how agents use specs. |
-| [`references/plans-protocol.md`](references/plans-protocol.md) | The full plan protocol: frontmatter schema, body template, status lifecycle, the closeout-commit ritual, and the Follow-ups taxonomy. |
-| [`references/spec-drift-auditor.md`](references/spec-drift-auditor.md) | Agent definition (for `.claude/agents/`) that audits `specs/` against the implementation. |
-| [`references/audit-spec-drift.md`](references/audit-spec-drift.md) | Slash-command definition (for `.claude/commands/`) that launches the auditor. |
-| [`references/spec-driven-landscape.md`](references/spec-driven-landscape.md) | The research note behind [How specops differs](#how-specops-differs): per-tool stances and sources across the spec-driven landscape. |
-| [`scripts/specops`](scripts/specops) | The `specops` CLI — a self-contained, committed bundle (`scripts/specops.mjs`) that queries the plans DAG. Built from [`src/cli/`](src/cli/) with `bun run build`. |
+| [`skills/specops/SKILL.md`](skills/specops/SKILL.md) | The skill itself — philosophy, how to write specs (including encoding principles), the spec directory structure, and how agents use specs. |
+| [`skills/specops/references/plans-protocol.md`](skills/specops/references/plans-protocol.md) | The full plan protocol: frontmatter schema, body template, status lifecycle, the closeout-commit ritual, and the Follow-ups taxonomy. |
+| [`skills/specops/references/spec-drift-auditor.md`](skills/specops/references/spec-drift-auditor.md) | Agent definition (for `.claude/agents/`) that audits `specs/` against the implementation. |
+| [`skills/specops/references/audit-spec-drift.md`](skills/specops/references/audit-spec-drift.md) | Slash-command definition (for `.claude/commands/`) that launches the auditor. |
+| [`skills/specops/scripts/specops`](skills/specops/scripts/specops) | The `specops` CLI — a self-contained, committed bundle (`specops.mjs`) that queries the plans DAG. |
+| [`src/cli/`](src/cli/) | TypeScript source for the CLI; `bun run build` bundles it into `skills/specops/scripts/specops.mjs`. *Repo-only — not installed.* |
+| [`docs/spec-driven-landscape.md`](docs/spec-driven-landscape.md) | The research note behind [How specops differs](#how-specops-differs): per-tool stances and sources across the spec-driven landscape. *Repo-only — not installed.* |
