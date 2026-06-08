@@ -626,30 +626,6 @@ function computeSessionStartHookUpdate(settings, spec) {
 
 // src/cli/reference.ts
 var DESCRIPTION = "Query the SpecOps plans DAG for the current repo \u2014 what's ready to work on, what's blocked, and the dependency graph. A thin determinism layer over a files-first plans/ workflow.";
-var COMMAND_GROUPS = [
-  {
-    group: "Plans",
-    commands: [
-      {
-        usage: "next [--include-in-progress] [--slugs-only] [--dir <path>]",
-        summary: "Plans ordered by readiness \u2014 ready (deps met, nothing awaited) first, then awaiting-external and blocked, with what unblocks the most work on top."
-      },
-      {
-        usage: "dag [--direction TB|LR|BT|RL] [--fence] [--include-cancelled] [--dir <path>]",
-        summary: "Mermaid graph of the plans DAG, nodes styled by status, external blockers dashed."
-      }
-    ]
-  },
-  {
-    group: "Session",
-    commands: [
-      {
-        usage: "hook install [--scope project|global] [--dir <path>] | hook status | hook uninstall [--scope project|global]",
-        summary: "Manage the SessionStart hook that loads this repo's plans dashboard at the start of every agent session."
-      }
-    ]
-  }
-];
 
 // src/cli/args.ts
 function parseArgs(args, booleanFlags = []) {
@@ -1003,14 +979,6 @@ function collapseHome2(p) {
 function summaryLine(a) {
   return `${a.ready.length} ready \xB7 ${a.inProgress.length} in-progress \xB7 ${a.awaiting.length} awaiting \xB7 ${a.blockedByDeps.length} blocked-by-deps \xB7 ${a.blockedByStatus.length} blocked \xB7 ${a.done.length} done \xB7 ${a.cancelled.length} cancelled`;
 }
-function commandReferenceText(cli) {
-  const groups = COMMAND_GROUPS.map(
-    (g) => `${g.group}:
-${g.commands.map((c) => `  ${cli} ${c.usage}`).join("\n")}`
-  );
-  return `commands:
-${groups.join("\n")}`;
-}
 function joinAwaits(c) {
   return c.plan.awaits.join("; ");
 }
@@ -1018,7 +986,67 @@ function joinDeps(c) {
   return c.openDeps.length ? c.openDeps.join("; ") : "none";
 }
 
+// src/cli/git.ts
+import { execFileSync } from "node:child_process";
+var UNIT = "";
+function recentlyDone(plansDir, doneSlugs, limit) {
+  if (doneSlugs.length === 0 || limit <= 0) return [];
+  let out;
+  try {
+    out = execFileSync(
+      "git",
+      [
+        "log",
+        "-p",
+        "-U0",
+        "--no-color",
+        "-G",
+        "status:",
+        `--format=${UNIT}%H %cs`,
+        "--",
+        ...doneSlugs.map((s) => `${s}.md`)
+      ],
+      {
+        cwd: plansDir,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 32 * 1024 * 1024
+      }
+    );
+  } catch {
+    return [];
+  }
+  const wanted = new Set(doneSlugs);
+  const seen = /* @__PURE__ */ new Set();
+  const results = [];
+  let commit = "";
+  let date = "";
+  let file;
+  for (const line of out.split("\n")) {
+    if (line.startsWith(UNIT)) {
+      const sp = line.indexOf(" ");
+      commit = line.slice(1, sp);
+      date = line.slice(sp + 1).trim();
+      file = void 0;
+      continue;
+    }
+    if (line.startsWith("+++ ")) {
+      const m = line.match(/([^/\s]+)\.md/);
+      file = m ? m[1] : void 0;
+      continue;
+    }
+    if (line.startsWith("--- ")) continue;
+    if (file && !seen.has(file) && wanted.has(file) && /^\+status:\s*done\b/.test(line)) {
+      seen.add(file);
+      results.push({ slug: file, date, commit });
+      if (results.length >= limit) break;
+    }
+  }
+  return results;
+}
+
 // src/cli/commands/home.ts
+var RECENT_DONE_LIMIT = 3;
 async function homeCommand(args) {
   const parsed = parseArgs(args, []);
   const dir = resolvePlansDir(parsed);
@@ -1026,10 +1054,9 @@ async function homeCommand(args) {
   if (!plansDirExists(dir)) {
     return renderOutput2([
       renderObject({ plans: `no plans/ directory in ${collapseHome2(dir)}` }),
-      commandReferenceText(cli),
       renderHelp([
         "This repo has no plans/ yet \u2014 add one to track work-in-flight (see references/plans-protocol.md)",
-        `Run \`${cli} --help\` for usage`
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`
       ])
     ]);
   }
@@ -1037,11 +1064,21 @@ async function homeCommand(args) {
   if (a.plans.size === 0) {
     return renderOutput2([
       renderObject({ plans: `0 plan files in ${collapseHome2(dir)}` }),
-      commandReferenceText(cli),
-      renderHelp(["Add a plan file under plans/ to begin (see references/plans-protocol.md)"])
+      renderHelp([
+        "Add a plan file under plans/ to begin (see references/plans-protocol.md)",
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`
+      ])
     ]);
   }
   const blocks = [renderObject({ summary: summaryLine(a) })];
+  if (a.inProgress.length) {
+    blocks.push(
+      renderList(
+        "in_progress",
+        a.inProgress.map((r) => ({ slug: r.plan.slug, unblocks: a.downstream.get(r.plan.slug) || 0 }))
+      )
+    );
+  }
   if (a.ready.length) {
     blocks.push(
       renderList(
@@ -1059,14 +1096,28 @@ async function homeCommand(args) {
       )
     );
   }
+  const recent = recentlyDone(
+    dir,
+    a.done.map((p) => p.slug),
+    RECENT_DONE_LIMIT
+  );
+  if (recent.length) {
+    const prBySlug = new Map(a.done.map((p) => [p.slug, p.pr]));
+    blocks.push(
+      renderList(
+        "recently_done",
+        recent.map((r) => ({ slug: r.slug, done: r.date, pr: prBySlug.get(r.slug) ?? null }))
+      )
+    );
+  }
   if (a.warnings.length) {
     blocks.push(renderLines("warnings", a.warnings));
   }
-  blocks.push(commandReferenceText(cli));
   blocks.push(
     renderHelp([
       `Run \`${cli} next\` for the full readiness breakdown`,
-      `Run \`${cli} dag --fence\` to visualize the dependency graph`
+      `Run \`${cli} dag --fence\` to visualize the dependency graph`,
+      `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`
     ])
   );
   return renderOutput2(blocks);
@@ -1467,7 +1518,7 @@ function status() {
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.0.0" : "dev";
+var VERSION = true ? "v1.0.0-5-g91adba0" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:

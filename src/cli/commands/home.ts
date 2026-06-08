@@ -2,7 +2,11 @@ import { parseArgs } from "../args.js";
 import { analyzePlans, plansDirExists, type Classified } from "../plans.js";
 import { renderObject, renderList, renderLines, renderHelp, renderOutput } from "../toon.js";
 import { cliInvocation } from "../invocation.js";
-import { resolvePlansDir, collapseHome, summaryLine, commandReferenceText } from "./common.js";
+import { resolvePlansDir, collapseHome, summaryLine } from "./common.js";
+import { recentlyDone } from "../git.js";
+
+/** How many recently-completed plans to surface in the dashboard. */
+const RECENT_DONE_LIMIT = 3;
 
 /**
  * Home view (no-args) — the plans dashboard for the current repo. Cheap (local
@@ -18,10 +22,9 @@ export async function homeCommand(args: string[]): Promise<string> {
   if (!plansDirExists(dir)) {
     return renderOutput([
       renderObject({ plans: `no plans/ directory in ${collapseHome(dir)}` }),
-      commandReferenceText(cli),
       renderHelp([
         "This repo has no plans/ yet — add one to track work-in-flight (see references/plans-protocol.md)",
-        `Run \`${cli} --help\` for usage`,
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`,
       ]),
     ]);
   }
@@ -30,12 +33,26 @@ export async function homeCommand(args: string[]): Promise<string> {
   if (a.plans.size === 0) {
     return renderOutput([
       renderObject({ plans: `0 plan files in ${collapseHome(dir)}` }),
-      commandReferenceText(cli),
-      renderHelp(["Add a plan file under plans/ to begin (see references/plans-protocol.md)"]),
+      renderHelp([
+        "Add a plan file under plans/ to begin (see references/plans-protocol.md)",
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`,
+      ]),
     ]);
   }
 
   const blocks: string[] = [renderObject({ summary: summaryLine(a) })];
+
+  // What's actively mid-flight — the most relevant "state right now" for a
+  // session dashboard. (`next` hides these by default since it answers "what to
+  // start"; home is a state overview, so it shows them.)
+  if (a.inProgress.length) {
+    blocks.push(
+      renderList(
+        "in_progress",
+        a.inProgress.map((r) => ({ slug: r.plan.slug, unblocks: a.downstream.get(r.plan.slug) || 0 })),
+      ),
+    );
+  }
 
   if (a.ready.length) {
     blocks.push(
@@ -58,15 +75,33 @@ export async function homeCommand(args: string[]): Promise<string> {
     );
   }
 
+  // Backward-looking momentum: the last few plans to land, by completion date
+  // (derived from git history, not commit messages). Best-effort — omitted when
+  // not a git repo or nothing is done.
+  const recent = recentlyDone(
+    dir,
+    a.done.map((p) => p.slug),
+    RECENT_DONE_LIMIT,
+  );
+  if (recent.length) {
+    const prBySlug = new Map(a.done.map((p) => [p.slug, p.pr]));
+    blocks.push(
+      renderList(
+        "recently_done",
+        recent.map((r) => ({ slug: r.slug, done: r.date, pr: prBySlug.get(r.slug) ?? null })),
+      ),
+    );
+  }
+
   if (a.warnings.length) {
     blocks.push(renderLines("warnings", a.warnings));
   }
 
-  blocks.push(commandReferenceText(cli));
   blocks.push(
     renderHelp([
       `Run \`${cli} next\` for the full readiness breakdown`,
       `Run \`${cli} dag --fence\` to visualize the dependency graph`,
+      `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`,
     ]),
   );
 
