@@ -24,7 +24,7 @@ export async function homeCommand(args: string[]): Promise<string> {
       renderObject({ plans: `no plans/ directory in ${collapseHome(dir)}` }),
       renderHelp([
         "This repo has no plans/ yet — add one to track work-in-flight (see references/plans-protocol.md)",
-        `Run \`${cli} --help\` for usage`,
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`,
       ]),
     ]);
   }
@@ -35,7 +35,7 @@ export async function homeCommand(args: string[]): Promise<string> {
       renderObject({ plans: `0 plan files in ${collapseHome(dir)}` }),
       renderHelp([
         "Add a plan file under plans/ to begin (see references/plans-protocol.md)",
-        `Run \`${cli} --help\` for usage`,
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`,
       ]),
     ]);
   }

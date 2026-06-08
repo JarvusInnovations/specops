@@ -1056,7 +1056,7 @@ async function homeCommand(args) {
       renderObject({ plans: `no plans/ directory in ${collapseHome2(dir)}` }),
       renderHelp([
         "This repo has no plans/ yet \u2014 add one to track work-in-flight (see references/plans-protocol.md)",
-        `Run \`${cli} --help\` for usage`
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`
       ])
     ]);
   }
@@ -1066,7 +1066,7 @@ async function homeCommand(args) {
       renderObject({ plans: `0 plan files in ${collapseHome2(dir)}` }),
       renderHelp([
         "Add a plan file under plans/ to begin (see references/plans-protocol.md)",
-        `Run \`${cli} --help\` for usage`
+        `Run \`${cli} --help\` to see the full command list, or \`${cli} <command> --help\` for usage on any command`
       ])
     ]);
   }
@@ -1518,7 +1518,7 @@ function status() {
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.0.0-4-gde12216" : "dev";
+var VERSION = true ? "v1.0.0-5-g91adba0" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:
