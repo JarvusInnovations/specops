@@ -4,6 +4,16 @@ A Claude Code skill for **spec-driven development**: specs are the source of tru
 
 Specs lead; code follows. Every chunk of work starts with a spec update, gets a plan declaring scope/dependencies/validation, and closes out by bringing the running software into conformance with the spec.
 
+Why specs and not docs: an implementer — human or agent — makes hundreds of micro-decisions, and the spec is what makes them match intent rather than guesswork. So a specops spec carries its own ***why*** — decisive governing **principles**, written down as first-class spec content and referenced *down* into the rules they govern, so the cases no rule enumerated get resolved the way the author would. And **spec↔code drift is a bug, not debt**: when the two diverge the spec is the authority until a review says otherwise, and a drift auditor keeps them honest.
+
+## Install
+
+```bash
+npx skills add JarvusInnovations/specops
+```
+
+This repo *is* the skill — `SKILL.md` lives at the root, with supporting material under `references/` and the bundled `specops` CLI under `scripts/`.
+
 ## How specops differs
 
 specops makes one opinionated bet: **a spec declares the complete desired state and stays authoritative for the life of the system, while a separate, temporal plan micro-DAG tracks the motion from spec to merged code and freezes as historical record once merged.** Most tools collapse these two layers — treating the spec as a scaffold consumed to generate code, or keeping only the temporal plan — and most leave governing principles and spec↔code drift to commit messages and review. The chart below maps where a representative handful of tools sit on the axes specops cares about; it's an honest map of the design space, not a scoreboard — several tools are stronger than specops on individual axes (notably BDD on drift enforcement, and Spec Kit and Kiro on agent/IDE integration).
@@ -28,14 +38,6 @@ The work-tracking tools — agent **plan mode** (Claude Code, Cursor), **[Task M
 
 [tm]: https://github.com/eyaltoledano/claude-task-master
 [beads]: https://github.com/steveyegge/beads
-
-## Install
-
-```bash
-npx skills add JarvusInnovations/specops
-```
-
-This repo *is* the skill — `SKILL.md` lives at the root, with supporting material under `references/` and the bundled `specops` CLI under `scripts/`.
 
 ## What's inside
 
