@@ -312,6 +312,16 @@ It ships as a self-contained bundle at `scripts/specops.mjs` (invoked through th
 
 ## Setting up spec-driven development in a new project
 
+**First, vendor this skill into the target project so the methodology travels with the codebase.** A project-level install means every contributor — and every agent they run — works against the same spec-and-plan practices, and the bundled `specops` CLI resolves from inside the repo with nothing to configure. From the project root:
+
+```bash
+mkdir -p .claude && npx skills add JarvusInnovations/specops -y --skill specops --agent claude-code universal
+```
+
+This installs the skill to `.agents/skills/specops/` (an agent-neutral canonical store) and symlinks `.claude/skills/specops` to it, then writes a `skills-lock.json`. Commit all three so the install is reproducible. The `universal` agent alongside `claude-code` is what selects this symlink layout — installing for `claude-code` alone copies the skill straight into `.claude/skills/` with no shared `.agents/` store; the `mkdir -p .claude` ensures the per-agent symlink is created rather than skipped. To add another agent later (e.g. Codex), re-run with its name appended and it symlinks to the same canonical store. Prefer `--global` only for solo use across many repos, where vendoring per-project doesn't apply.
+
+Then:
+
 1. Create a `specs/` directory at the project root
 2. Write `specs/README.md` documenting the workflow and directory layout
 3. Write `specs/architecture.md` with foundational tech decisions
