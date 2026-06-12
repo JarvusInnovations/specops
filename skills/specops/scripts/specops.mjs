@@ -1406,11 +1406,12 @@ function settingsPath(scope, flags) {
   const base = scope === "global" ? homedir4() : projectBase(flags);
   return join2(base, ".claude", "settings.json");
 }
-function execPath() {
-  return fileURLToPath2(import.meta.url);
+function shimPath() {
+  return join2(dirname(fileURLToPath2(import.meta.url)), "specops");
 }
-function hookCommand() {
-  return `node ${JSON.stringify(execPath())}`;
+var PROJECT_HOOK_COMMAND = '"${CLAUDE_PROJECT_DIR}/.claude/skills/specops/scripts/specops"';
+function hookCommand(scope) {
+  return scope === "global" ? JSON.stringify(shimPath()) : PROJECT_HOOK_COMMAND;
 }
 function readSettings(path) {
   if (!existsSync2(path)) return {};
@@ -1456,7 +1457,7 @@ function install(args) {
   const { flags } = parseArgs(args);
   const scope = resolveScope(flags);
   const path = settingsPath(scope, flags);
-  const command = hookCommand();
+  const command = hookCommand(scope);
   const settings = readSettings(path);
   const [updated, changed] = computeSessionStartHookUpdate(settings, {
     marker: MARKER,
@@ -1518,7 +1519,7 @@ function status() {
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.1.0-8-g39e4502" : "dev";
+var VERSION = true ? "v1.1.2" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:
