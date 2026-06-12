@@ -73,20 +73,31 @@ function settingsPath(scope: Scope, flags: Record<string, string | boolean>): st
   return join(base, ".claude", "settings.json");
 }
 
-function execPath(): string {
-  return fileURLToPath(import.meta.url);
+/** Absolute path to the bundle's sibling `specops` shim on this machine. */
+function shimPath(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), "specops");
 }
 
 /**
- * The command the hook runs: the bare bundle (home dashboard). SessionStart
- * hooks run with cwd at the workspace root, so the home view resolves ./plans
- * for that repo. A project-scoped hook only fires for its repo (it lives in that
- * repo's .claude/settings.json); a global hook fires everywhere, cwd-relative.
- * (The home view takes no leading flags, so the dir can't be pinned here — but
- * it doesn't need to be: cwd is the repo.)
+ * The command the hook runs: the bare `specops` shim (home dashboard).
+ * SessionStart hooks run with cwd at the workspace root, so the home view
+ * resolves ./plans for that repo.
+ *
+ * Project scope must be portable: the hook is written to <repo>/.claude/
+ * settings.json and committed, so it has to work on every machine and for every
+ * contributor. We emit a `${CLAUDE_PROJECT_DIR}`-relative path to the vendored
+ * skill's shim (the .claude/skills/specops symlink the install creates) — never
+ * a machine-specific absolute path. Quoted so a project dir with spaces is safe.
+ *
+ * Global scope (~/.claude/settings.json) is per-machine and never committed, and
+ * it fires in every repo — including ones that don't vendor specops — so a
+ * project-relative path would dangle. There we use the absolute path of the
+ * installed shim, which self-locates wherever the global skill lives.
  */
-function hookCommand(): string {
-  return `node ${JSON.stringify(execPath())}`;
+const PROJECT_HOOK_COMMAND = '"${CLAUDE_PROJECT_DIR}/.claude/skills/specops/scripts/specops"';
+
+function hookCommand(scope: Scope): string {
+  return scope === "global" ? JSON.stringify(shimPath()) : PROJECT_HOOK_COMMAND;
 }
 
 function readSettings(path: string): HookSettings {
@@ -136,7 +147,7 @@ function install(args: string[]): string {
   const { flags } = parseArgs(args);
   const scope = resolveScope(flags);
   const path = settingsPath(scope, flags);
-  const command = hookCommand();
+  const command = hookCommand(scope);
 
   const settings = readSettings(path);
   const [updated, changed] = computeSessionStartHookUpdate(settings, {
