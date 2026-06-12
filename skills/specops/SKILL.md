@@ -230,10 +230,13 @@ When implementing a feature or fixing a bug:
 
 ### When starting a new feature
 
+First decide what *kind* of work this is — it changes whether a plan comes now, later, or in tandem with the spec (see [When (and when not) to author a plan](#when-and-when-not-to-author-a-plan)). The steps below are the default path for the common case: **one bounded feature in a project whose surrounding specs are stable.**
+
 1. Write or update the spec files first
 2. Get the spec reviewed and accepted
-3. Then implement to match the spec
-4. Verify the running software matches what the spec says
+3. Author the plan that brings code to the spec — scope, the specs it implements, dependencies, validation criteria (for this one-bounded-feature case, draft the spec change and its plan in tandem and present both)
+4. Implement to match the spec
+5. Verify the running software matches the spec, then close the plan out — it freezes as the record of what got built
 
 ### When fixing a bug
 
@@ -287,6 +290,30 @@ A plan's body has a fixed template: **Scope**, **Implements**, **Approach**, **V
 
 The full protocol — frontmatter schema, body template, status lifecycle, the closeout-commit ritual, the Follow-ups taxonomy (Issue / Deferred to plan / Tracked as / None), and the deferral-absorption rule — is in [references/plans-protocol.md](references/plans-protocol.md). Read it before authoring or closing out a plan.
 
+### When (and when not) to author a plan
+
+**In a specops project, the `plans/` DAG is the planning system.** Don't substitute an agent's built-in "plan mode" or a throwaway planning scratchpad for it — those evaporate when the turn ends, leaving the DAG with no record of what was built or why. If you use a scratchpad to think, the artifact still has to land as a plan file. Watch for one failure mode in particular: drafting an ephemeral plan that reads "write spec X, then build it," then doing exactly that — and leaving behind *neither* a reviewed spec change *nor* a plan. Split it instead: the spec change goes through the spec-first flow, and the work to execute it gets a plan file.
+
+**When the plan gets authored depends on what the user is doing:**
+
+- **Mapping out a batch of specs** — sketching desired state across several specs, not building yet. **Don't author plans as you go.** Plans are motion; while the desired state is still settling, a plan-per-spec churns and rarely partitions the work well. Wait until the batch is complete, then step back and **propose a *set* of plans** that carves the work into sensible, dependency-ordered chunks. The good partition usually doesn't map one-to-one onto the spec files.
+
+- **Speccing and building one bounded feature in a mature project** — surrounding specs are stable, scope is small. **Build the spec change and its plan in tandem:** write the spec update and the plan to execute it together, present both, and proceed once they're accepted.
+
+- **Intent unclear** — if it isn't obvious whether the user is building up a batch of specs or writing one to execute right now, **ask** before defaulting: "Are we mapping out specs first and planning the build after, or is this one thing to build now?" The answer picks the mode above.
+
+**Even quick one-off work leaves a plan behind.** The urge to skip a plan because a change is "small" is exactly what hollows out the DAG. A bounded change still gets a plan file that freezes to `done` — that frozen record (merged PR + checked validation) is the project's working memory of what got built. Skipping it trades a few seconds now for an undocumented change later.
+
+### When a spec changes, revisit the plans it touches
+
+A spec edit can strand work that's already planned or in flight against the old desired state. **Whenever you change a spec, review the plans that implement it and offer to update them.** Find them by grepping the `specs:` frontmatter for the file you touched:
+
+```sh
+grep -l 'specs/path/to/changed.md' plans/*.md
+```
+
+For each hit: a `planned` plan may need its scope, approach, or validation revised; an `in-progress` plan's owner should be flagged that the target moved (don't silently rewrite a plan someone is mid-implementation on). This is the mirror of "specs come first" — the spec moves, then the plans chasing it catch up.
+
 ### Querying the plans DAG
 
 `plans/README.md` deliberately does **not** maintain a hand-drawn DAG or a status table — they'd rot the moment someone forgot to update them. The bundled **`specops` CLI** queries the authoritative plan frontmatter on demand and emits agent-friendly [TOON](https://toonformat.dev/) output:
@@ -327,10 +354,43 @@ Then:
 3. Write `specs/architecture.md` with foundational tech decisions
 4. Write `specs/principles.md` capturing the principles you already hold — your project philosophy written down as decisive "always favor X over Y" trade-offs that should steer every implementer. Seed it with what you know now; it grows as decisions get resolved (see [keeping specs alive](#keeping-specs-alive))
 5. For each feature area, create the relevant spec files before coding
-6. Reference the specs directory in your project's CLAUDE.md or README
+6. Add the specops hook to the project's CLAUDE.md (see [The CLAUDE.md hook](#the-claudemd-hook) below) — this is the always-loaded steer that gets agents to the skill and the plan protocol
 7. Establish the convention: PRs that add features should include spec updates
 8. Set up the spec drift auditor (see below)
 9. Set up the plans protocol (see below)
+
+### The CLAUDE.md hook
+
+`SKILL.md` and the reference docs carry the full methodology, but they only load **when the skill triggers**. The project's CLAUDE.md is the one thing in context *every* turn — so it's where you counteract the default agent reflexes that specops overrides: shipping code without a spec, and dropping into built-in "plan mode" instead of writing a plan file. Keep this block **minimal** — its job is to hook those behaviors and route to the skill for everything else, not to restate the methodology.
+
+Insert this block (adjusting `<specops-skill-path>` to the install path) into the project's CLAUDE.md. It's the *only* specops content CLAUDE.md needs — it subsumes the separate auditor and plans notes the older setup steps described:
+
+```markdown
+## Spec-driven development (specops)
+
+This project uses spec-driven development. `specs/` is the source of truth for what
+*should be true*; `plans/` is the work-in-flight DAG that bridges specs to merged code.
+The **specops** skill carries the full methodology — invoke it (the skill triggers on
+"spec", "plan", starting a feature, etc.) before writing specs, planning, or building.
+
+- **Specs lead.** Before changing behavior, change the spec; bring code into conformance
+  after. Spec↔code drift is a bug, not debt.
+- **`plans/` is the planning system — not your built-in plan mode.** Every chunk of work
+  lands as a file in `plans/` that freezes to `done` as the durable record of what got
+  built. Don't let an ephemeral plan substitute for it, and don't skip it for "small"
+  changes. (Classic trap: an ad-hoc plan of "write spec X, then build it" that ends with
+  neither a reviewed spec nor a plan file — split those into the two real artifacts.)
+- **When to author a plan depends on intent:** mapping out a batch of specs → finish the
+  batch first, then propose a *set* of plans; speccing one bounded feature in a mature
+  project → draft the spec change and its plan in tandem; intent unclear → ask. The skill
+  details each mode.
+- **A spec change ripples to its plans.** After editing a spec, review the plans that
+  implement it (`grep -l '<spec-path>' plans/*.md`) and offer to update them.
+
+Query the DAG: `<specops-skill-path>/scripts/specops next` (what to work on next) and
+`<specops-skill-path>/scripts/specops dag` (graph). Run `/audit-spec-drift` to compare
+specs against the implementation.
+```
 
 ### Setting up the spec drift auditor
 
@@ -340,12 +400,7 @@ The spec drift auditor is a specialized agent that does an exhaustive comparison
 
 2. **Copy the command definition** from this skill's `references/audit-spec-drift.md` into your project at `.claude/commands/audit-spec-drift.md`. This gives users a `/audit-spec-drift` slash command that launches the auditor agent.
 
-3. **Reference in CLAUDE.md** — add a note to the project's CLAUDE.md mentioning the auditor is available, e.g.:
-
-   ```
-   ## Spec Drift Auditing
-   Run `/audit-spec-drift` to launch a comprehensive audit comparing specs/ against the implementation.
-   ```
+3. **Reference in CLAUDE.md** — the `/audit-spec-drift` pointer is already part of [The CLAUDE.md hook](#the-claudemd-hook) block, so there's nothing separate to add here once that block is in place.
 
 The reference files are located at:
 
@@ -360,7 +415,7 @@ The plans protocol gives a project a structured way to track work-in-flight with
 
 1. **Create the `plans/` directory** at the project root.
 2. **Write `plans/README.md`** that briefly states what plans are (motion vs state) and points at [references/plans-protocol.md](references/plans-protocol.md) for the full spec. Resist the urge to maintain a DAG drawing or status table inside it — both rot. The `specops` CLI regenerates that view on demand.
-3. **Document the protocol in the project's CLAUDE.md** — add a Plans section summarizing the workflow (statuses, closeout commit, Follow-ups taxonomy) and link to `plans/README.md`. The reference doc in this skill is the canonical source; the project CLAUDE.md just needs enough for someone working in the repo to find their way without re-reading the whole reference.
+3. **Document the protocol in the project's CLAUDE.md** — covered by [The CLAUDE.md hook](#the-claudemd-hook) block, which already states the plans-are-the-planning-system rule and points at the skill for the full protocol (statuses, closeout commit, Follow-ups taxonomy). Don't restate the protocol in CLAUDE.md — keep it lean and let the skill carry the detail.
 4. **Use the `specops` CLI in-place from the skill.** `scripts/specops` is the self-contained bundle shipped with this skill; run it from the skill's install directory against the project's `plans/` — there's nothing to copy, symlink, or vendor, and no `npm install` (it runs on `node ≥ 20`). Claude resolves the skill path automatically when specops triggers; from the project root the invocation is `<specops-skill-path>/scripts/specops next` (or `dag`). Optionally run `<specops-skill-path>/scripts/specops hook install` once so every session in the repo opens with the plans dashboard.
 5. **Establish the convention** in the team: a new chunk of work starts with a plan file; the last commit before merge flips it to `done`. Quick-reference checklist for closeout is in [references/plans-protocol.md](references/plans-protocol.md#quick-checklist-for-a-closeout-pr).
 
