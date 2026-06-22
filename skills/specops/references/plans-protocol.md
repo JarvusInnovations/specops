@@ -169,6 +169,15 @@ When the awaited thing happens, delete the matching entry from `awaits:`. Git hi
 
 `specops dag` styles nodes with non-empty `awaits:` distinctly (dashed border) so the external dependency is visible in the rendered graph.
 
+## Proposal plans
+
+Sometimes the deliverable is a *decision*, not code: a spec or contract authored for a downstream or cross-team consumer to implement, or a design that needs sign-off before anyone builds against it. These are first-class plans — the proposal artifact (a `specs/api/*.md` contract, an ADR, a data-model sketch) is the thing that ships and goes on the record — but they are deliberately scoped-not-built.
+
+- **Status + `awaits:`.** A proposal that cannot be built until an external party acts is `status: blocked` with a non-empty `awaits:` naming what's awaited (the downstream team's implementation, a partner sign-off, an upstream release). If part of the scope can proceed now, `status: planned`/`in-progress` + `awaits:` is fine. Either way `awaits:` must be present — `status: blocked` with an empty `awaits:` is the smell the scripts flag (see [Relationship to `status`](#relationship-to-status)).
+- **Body.** Keep the section headings, but a proposal legitimately has a thin Approach (there's no implementation yet) and folds most of its substance into Scope, Implements, and Risks. Don't delete the headings — an explicit `## Approach` reading "n/a until <blocker> clears" is clearer than a missing one.
+- **Shipping it.** The proposal lands as a record so the contract is versioned and shareable; merging the plan/spec does **not** imply the work is built — the plan stays `blocked`. Signal intent on the PR: open it as a draft and title it so reviewers see it's a proposal, e.g. `docs(specs): PROPOSAL — <feature>`. Cross-team agreement gates *implementation*, not the merge of the record.
+- **Closing the loop.** When the awaited thing lands, clear the matching `awaits:` entry and either flip the plan to `in-progress`, or spawn the implementation plan(s) with `depends:` on the now-merged contract and let the proposal freeze as the historical record of the decision.
+
 ## The closeout commit
 
 The last commit on the implementation branch, before merge, does **five things in one shot** under the message `chore(plans): mark <slug> done (PR #<n>)`:
