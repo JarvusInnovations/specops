@@ -6,7 +6,9 @@ The orchestrator (you, the driving agent) never writes the implementation. You c
 
 ## Explicitly triggered — never automatic
 
-**Do not enter this protocol on your own.** Authoring a plan DAG and executing it are two separate decisions, and *finishing the plans is not consent to build them.* After a batch of plans is authored or reviewed, you may **offer** to execute it this way — but you must not begin (no worktrees, no subagents, no PRs, no merges) until the human explicitly triggers it. The blast radius is the reason: many parallel subagents spending real budget, many branches, many PRs and merges against a live repo. That go/no-go is the human's to make. Offer, then wait to be told.
+**Do not enter this protocol on your own.** Authoring a plan DAG and executing it are two separate decisions, and *finishing the plans is not consent to build them.* After a batch of plans is authored or reviewed, you may **offer** to execute it this way — but you must not begin (no worktrees, no subagents, no PRs, no merges) until the human explicitly triggers it. The blast radius is the reason: many parallel subagents spending real budget, many branches, many PRs and merges against a live repo. That go/no-go is the human's to make.
+
+The established trigger phrase is **"drain the DAG"** — when the human says it (or gives an equivalent explicit go-ahead), start executing; until then, offer and wait.
 
 ## When to use this
 

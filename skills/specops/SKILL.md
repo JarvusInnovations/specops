@@ -306,7 +306,7 @@ The full protocol — frontmatter schema, body template, status lifecycle, the c
 
 ### Executing a plan DAG
 
-Once a batch of plans is authored, reviewed, and `planned`, building them out is a **separate, explicitly-triggered step** — not something to fold into the same turn. *Finishing the plans is not consent to build them.* **Offer** to execute the DAG and wait for the human to trigger it; never start dispatching implementation work on your own.
+Once a batch of plans is authored, reviewed, and `planned`, building them out is a **separate, explicitly-triggered step** — not something to fold into the same turn. *Finishing the plans is not consent to build them.* **Offer** to execute the DAG and wait for the human to trigger it — the trigger phrase is **"drain the DAG"** (or any equivalent explicit go-ahead); never start dispatching implementation work on your own.
 
 When triggered, the way to execute a multi-plan DAG at scale is **dependency-gated waves of isolated worktree subagents (Sonnet) with a review/merge gate between them**: the orchestrator computes the ready set (`specops next`), creates a worktree per ready plan off the latest integration branch, dispatches a subagent into each to implement → push → open a PR (**never merge**), then **reviews every PR, fixes directly, confirms CI, and merges** — each merge unlocking the next wave. The full protocol — the agent brief, the review/merge gate, parallel-conflict resolution, per-agent live-dependency isolation, and which plans (operational or cross-repo) must *not* be auto-executed — is in [references/parallel-execution-protocol.md](references/parallel-execution-protocol.md). Read it before driving an execution run.
 
