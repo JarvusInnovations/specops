@@ -304,6 +304,12 @@ The full protocol — frontmatter schema, body template, status lifecycle, the c
 
 **Even quick one-off work leaves a plan behind.** The urge to skip a plan because a change is "small" is exactly what hollows out the DAG. A bounded change still gets a plan file that freezes to `done` — that frozen record (merged PR + checked validation) is the project's working memory of what got built. Skipping it trades a few seconds now for an undocumented change later.
 
+### Executing a plan DAG
+
+Once a batch of plans is authored, reviewed, and `planned`, building them out is a **separate, explicitly-triggered step** — not something to fold into the same turn. *Finishing the plans is not consent to build them.* **Offer** to execute the DAG and wait for the human to trigger it; never start dispatching implementation work on your own.
+
+When triggered, the way to execute a multi-plan DAG at scale is **dependency-gated waves of isolated worktree subagents (Sonnet) with a review/merge gate between them**: the orchestrator computes the ready set (`specops next`), creates a worktree per ready plan off the latest integration branch, dispatches a subagent into each to implement → push → open a PR (**never merge**), then **reviews every PR, fixes directly, confirms CI, and merges** — each merge unlocking the next wave. The full protocol — the agent brief, the review/merge gate, parallel-conflict resolution, per-agent live-dependency isolation, and which plans (operational or cross-repo) must *not* be auto-executed — is in [references/parallel-execution-protocol.md](references/parallel-execution-protocol.md). Read it before driving an execution run.
+
 ### When a spec changes, revisit the plans it touches
 
 A spec edit can strand work that's already planned or in flight against the old desired state. **Whenever you change a spec, review the plans that implement it and offer to update them.** Find them by grepping the `specs:` frontmatter for the file you touched:
