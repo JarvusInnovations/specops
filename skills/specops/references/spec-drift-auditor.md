@@ -60,10 +60,10 @@ Produce your report with these three tables:
 
 ### Table 1: Specified but Not Implemented
 
-| Spec File | Item | Description | Proposed Resolution |
-|-----------|------|-------------|--------------------|
+| Spec File | Item | Description | Plan Coverage | Proposed Resolution |
+|-----------|------|-------------|---------------|--------------------|
 
-For each row, clearly identify what the spec says should exist, where it should be, and recommend either implementing it or updating the spec to remove it (with reasoning).
+For each row, clearly identify what the spec says should exist, where it should be, and recommend either implementing it or updating the spec to remove it (with reasoning). Fill **Plan Coverage** by checking `plans/` frontmatter (`grep -l '<spec-path>' plans/*.md` and each hit's `status`): a gap claimed by a `planned`/`in-progress`/`blocked` plan is **expected motion** (cite the plan slug); a gap claimed by no plan is an **invariant violation** in repos that follow the merged-specs-are-implemented-or-planned convention (see the specops skill, "Where in-development specs live") — call those out as the highest-signal Table 1 findings, since they mean an undeveloped draft leaked onto the main branch.
 
 ### Table 2: Implemented but Not Specified
 
