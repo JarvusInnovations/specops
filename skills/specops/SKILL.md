@@ -24,7 +24,7 @@ When agents or developers implement features, they make hundreds of micro-decisi
 4. Verify       →  compare running software to spec
 ```
 
-Code without a corresponding spec is unspecified behavior — it may exist for practical reasons, but nothing guarantees it. Spec without corresponding code is a known gap — track it.
+Code without a corresponding spec is unspecified behavior — it may exist for practical reasons, but nothing guarantees it. Spec without corresponding code is a known gap — and on the main branch, a known gap **carries a committed plan**. A spec that has neither implementation nor plan isn't a gap, it's an undeveloped draft, and it lives on a draft planning PR until it's real (see [Where in-development specs live](#where-in-development-specs-live-the-draft-planning-pr)).
 
 ## How to write specs
 
@@ -238,6 +238,22 @@ First decide what *kind* of work this is — it changes whether a plan comes now
 4. Implement to match the spec
 5. Verify the running software matches the spec, then close the plan out — it freezes as the record of what got built
 
+### Where in-development specs live: the draft planning PR
+
+The invariant that keeps a `specs/` tree auditable: **every spec on the main branch is either implemented or carries a committed plan.** Under that invariant, spec auditing stays meaningful — a Table-1 "specified but not implemented" finding is always either expected motion (a plan exists; cite it) or a genuine violation. Without it, the auditor can't tell a gap the team is driving toward from a sketch someone parked, and its gap tables decay into noise.
+
+So a spec whose desired state is **still being negotiated** doesn't merge. It lives on a **draft planning PR** — a branch holding the in-development spec (and eventually its plan set) that converts from draft and merges only when the finalized spec(s) and the plan(s) to implement them ride together. The PR body carries the countdown: design questions still open, companion specs to amend, plans to author.
+
+Why a draft PR beats a `status: draft` marker on the main branch:
+
+- **Absence is the only unambiguous marker.** A draft on main still pollutes grep results and reading context, and an implementer (or agent) diving into `specs/` has no reliable reflex to check a status field before building against it.
+- **Every tool would need to know the marker** — the drift auditor, `grep`-based spec references, plan `specs:` fields. Absence requires nothing from anyone.
+- **The review conversation happens where review lives anyway** — on the PR, threaded against the diff, instead of as edits to a half-real file on main.
+
+Hygiene: rebase a long-lived spec branch onto main periodically so the eventual merge is clean, and keep one draft PR per design arc (a batch of related specs shares one PR; unrelated arcs don't).
+
+**Distinguish this from a [proposal plan](references/plans-protocol.md#proposal-plans)**, which handles the *next* stage: a contract that's already agreed but can't be built until an external party acts. A proposal plan **merges** — spec plus a `blocked` plan with `awaits:` — because the design is settled and the record needs to be versioned and shareable; the invariant holds because the plan rides along. The draft planning PR is upstream of agreement: design still churning, no plan yet, nothing to hold the invariant with — so it stays off main entirely. One converts to the other: when a draft's design settles but its build is externally gated, land it as a proposal plan.
+
 ### When fixing a bug
 
 1. Check if the behavior is specified — if so, the spec is right and the code is wrong
@@ -296,7 +312,7 @@ The full protocol — frontmatter schema, body template, status lifecycle, the c
 
 **When the plan gets authored depends on what the user is doing:**
 
-- **Mapping out a batch of specs** — sketching desired state across several specs, not building yet. **Don't author plans as you go.** Plans are motion; while the desired state is still settling, a plan-per-spec churns and rarely partitions the work well. Wait until the batch is complete, then step back and **propose a *set* of plans** that carves the work into sensible, dependency-ordered chunks. The good partition usually doesn't map one-to-one onto the spec files.
+- **Mapping out a batch of specs** — sketching desired state across several specs, not building yet. **Don't author plans as you go.** Plans are motion; while the desired state is still settling, a plan-per-spec churns and rarely partitions the work well. Wait until the batch is complete, then step back and **propose a *set* of plans** that carves the work into sensible, dependency-ordered chunks. The good partition usually doesn't map one-to-one onto the spec files. While it settles, the batch accumulates on a **draft planning PR**, not on the main branch — see [Where in-development specs live](#where-in-development-specs-live-the-draft-planning-pr); the PR converts and merges when the batch and its plan set are finalized together.
 
 - **Speccing and building one bounded feature in a mature project** — surrounding specs are stable, scope is small. **Build the spec change and its plan in tandem:** write the spec update and the plan to execute it together, present both, and proceed once they're accepted.
 
@@ -380,7 +396,8 @@ The **specops** skill carries the full methodology — invoke it (the skill trig
 "spec", "plan", starting a feature, etc.) before writing specs, planning, or building.
 
 - **Specs lead.** Before changing behavior, change the spec; bring code into conformance
-  after. Spec↔code drift is a bug, not debt.
+  after. Spec↔code drift is a bug, not debt. Specs merge implemented-or-planned; a spec
+  still being designed rides a draft planning PR, not the main branch.
 - **`plans/` is the planning system — not your built-in plan mode.** Every chunk of work
   lands as a file in `plans/` that freezes to `done` as the durable record of what got
   built. Don't let an ephemeral plan substitute for it, and don't skip it for "small"
