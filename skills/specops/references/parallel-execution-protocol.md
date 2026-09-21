@@ -85,13 +85,13 @@ This is the load-bearing half of the protocol. A subagent's confidence is not a 
 
 Sibling plans that both append to a shared surface (a `.proto`, a route table, a generated-client wrapper, a central server switch) will merge clean for the *first* one and conflict for the *second*. Resolve by integrating the later branch onto the updated base, not by weakening the isolation:
 
-1. In the later plan's worktree: `git rebase origin/<integration-branch>`.
+1. In the later plan's worktree: `git fetch origin`, then `git rebase origin/<integration-branch>`.
 2. Resolve the conflicts. Append-conflicts are almost always **"keep both"** — two independent additions to the same region; take both sides and order them sanely.
 3. **Fix integration breakage the rebase exposes** — the most common is a test double or fixture written against the *pre-extension* interface that no longer satisfies it once the other plan widened it. Add the missing stubs; make the merged tree compile.
-4. Verify the merged result: build + typecheck + the fast test suites, then push (`--force-with-lease`) and let **CI** re-run as the real gate.
+4. Verify the rebased result: build + typecheck + the fast test suites, refresh the plan's validation evidence and keep its canonical closeout commit last, then push (`--force-with-lease`) and let **CI** re-run as the real gate.
 5. Merge.
 
-Prefer rebase over merging the base into the branch — it keeps the feature branch a clean linear delta and avoids a merge-of-a-merge. (Plan the *order* to minimize this: merge the plan that owns the most shared-surface changes first, rebase the lighter ones onto it.)
+Follow the plans protocol's [branch-update rule](plans-protocol.md#updating-implementation-branches), which applies to every plan, including preserving semantic resolutions from earlier merges. Plan the *order* to minimize conflicts: merge the plan that owns the most shared-surface changes first, rebase the lighter ones onto it.
 
 ## Plans that aren't auto-completable
 
