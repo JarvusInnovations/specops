@@ -81,6 +81,22 @@ This is the load-bearing half of the protocol. A subagent's confidence is not a 
 - **Clean up:** remove the worktree, delete the local branch, prune. Note that a PR merge tool often *can't* delete the local branch while its worktree still exists — remove the worktree first, then delete the branch.
 - After merging, **recompute readiness** and dispatch whatever just unblocked.
 
+### The adversarial pre-review pass
+
+For a correctness-critical branch, harden the gate by dispatching a dedicated **adversarial review subagent** before the human review — briefed to *refute* the branch, not summarize it. This pass has a track record: on a reviewed production service (the open-source continuous-gtfs platform), an adversarial pass found a platform-wide authorization hole (a gateway stripping the claim an enforcement path depended on — [continuous-gtfs#707](https://github.com/JarvusInnovations/continuous-gtfs/issues/707)) that the build agent, the test suite, and a summarizing read had all missed; a later pass caught a reconciler that would have written a permanently wrong record on the exact deployment shape that motivated the feature.
+
+The briefing shape is what makes it work — a generic "review this PR" produces admiration, not findings:
+
+- **Refute, don't admire.** State the job as disproving correctness; findings are the deliverable, praise is noise.
+- **Enumerate attack surfaces, ordered by blast radius.** Name the specific seams to attack — the concurrency window, the migration's constraint assumptions, the state transition both sides of a cache straddle, the deployment shape the fixtures don't model — rather than pointing at the diff. The orchestrator knows where the risk concentrates; encode that knowledge in the brief.
+- **Demand evidence discipline.** Every finding is tagged `CONFIRMED` (the reviewer traced the failing code path or reproduced it) or `PLAUSIBLE` (the author must check) — and speculative findings are explicitly forbidden. This is what separates the pass from a linter's noise.
+- **Require severity + failure scenario + minimal fix** per finding, most severe first, so the response round is mechanical.
+
+Two rules keep the pass honest within the gate:
+
+- **It hardens the human gate; it does not replace it.** The human (or orchestrator-as-reviewer) still reads the diff and owns the merge. Substituting the adversarial pass for that review happens only on the human's explicit authorization, disclosed at merge time — never silently.
+- **Findings are executed before the closeout commit**, so the closeout-last invariant survives the review round-trip: fix commits land, then the closeout re-lands as the branch tip.
+
 ## Conflicts between parallel plans
 
 Sibling plans that both append to a shared surface (a `.proto`, a route table, a generated-client wrapper, a central server switch) will merge clean for the *first* one and conflict for the *second*. Resolve by integrating the later branch onto the updated base, not by weakening the isolation:
@@ -105,6 +121,7 @@ Recognize these and **do not force an auto-merge.** Keep the plan `planned`, and
 - [ ] For each ready plan the **orchestrator creates the worktree** off the latest integration branch, then dispatches its agent **concurrently**.
 - [ ] Each brief pins: read-first list, implement-to-spec, build+test, push+PR, **do-not-merge**, close-out, concurrency note, report-back.
 - [ ] Every PR **reviewed** (deepest on correctness-critical code); fixes applied directly.
+- [ ] Correctness-critical branches got an **adversarial pre-review pass** (refute-briefed, attack surfaces enumerated, CONFIRMED/PLAUSIBLE discipline); findings executed **before** the closeout commit.
 - [ ] **CI green** confirmed before every merge; local-only failures reconciled against CI.
 - [ ] **Real merge commit**, remote branch deleted, worktree removed, local branch deleted, remote pruned.
 - [ ] Parallel-plan conflicts resolved by **rebase + keep-both + fix-integration + CI**, not by serializing away the parallelism.
