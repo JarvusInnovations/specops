@@ -83,7 +83,7 @@ This is the load-bearing half of the protocol. A subagent's confidence is not a 
 
 ### The adversarial pre-review pass
 
-For a correctness-critical branch, harden the gate by dispatching a dedicated **adversarial review subagent** before the human review — briefed to *refute* the branch, not summarize it. This pass has a track record: on a reviewed production service (the open-source continuous-gtfs platform), an adversarial pass found a platform-wide authorization hole (a gateway stripping the claim an enforcement path depended on — [continuous-gtfs#707](https://github.com/JarvusInnovations/continuous-gtfs/issues/707)) that the build agent, the test suite, and a summarizing read had all missed; a later pass caught a reconciler that would have written a permanently wrong record on the exact deployment shape that motivated the feature.
+For a correctness-critical branch, harden the gate by dispatching a dedicated **adversarial review subagent** before the human review — briefed to *refute* the branch, not summarize it. This pass reliably surfaces defect classes the build agent, the test suite, and a summarizing read all miss — enforcement paths whose caller strips the claim they check, reconcilers correct on fixture shapes but wrong on a real deployment's shape — because those need someone *hunting* for the failure, not describing the code.
 
 The briefing shape is what makes it work — a generic "review this PR" produces admiration, not findings:
 
