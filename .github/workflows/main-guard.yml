@@ -1,0 +1,35 @@
+name: 'Main: guard'
+
+# main is the release target and stays the default branch (it is what
+# `npx skills add JarvusInnovations/specops` installs). Only the Release PR
+# from develop, or a hotfix/* branch, may merge into it. This check is
+# required on main, so a feature PR opened against main cannot merge; the
+# companion main-retarget workflow moves such PRs onto develop on open.
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, edited, reopened, synchronize ]
+
+jobs:
+  head-is-develop:
+    name: PR into main comes from develop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the head branch
+        env:
+          HEAD: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "::error::PRs into main must come from this repository's develop branch (the Release PR) or a hotfix/* branch, not from a fork. Retarget this PR to develop."
+            exit 1
+          fi
+          case "$HEAD" in
+            develop|hotfix/*) echo "ok: head is $HEAD" ;;
+            *)
+              echo "::error::PRs into main must come from develop (the Release PR) or a hotfix/* branch; this one comes from $HEAD. Retarget it to develop."
+              exit 1
+              ;;
+          esac
