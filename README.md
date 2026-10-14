@@ -4,7 +4,7 @@ A Claude Code skill for **spec-driven development**. `specs/` says what the soft
 
 Specs are written primarily for the agents doing the work: they are how an implementer tells an intended behavior from an accidental one, and how a decision made in one session survives into the next. People read them when they need to know what was agreed; they do not need to read them to use the project.
 
-## The loop, in one picture
+## How work flows from issue to merge
 
 Every chunk of work rides **one branch and one PR, framed around the feature that will ship**. The PR opens early with only the spec and plan aboard, picks up the implementation on the same branch, and merges once the plan is complete.
 
@@ -21,7 +21,7 @@ flowchart LR
 
 Spec-only PRs are not a thing here. The two cases where an unfinished plan sits on the main branch are a bootstrap batch of plans about to be executed, and a proposal whose build waits on an outside party. Everything else that is "planned but not started" is an issue.
 
-## Three artifacts, three questions
+## What issues, specs, and plans are each for
 
 | | Issue tracker | `specs/` | `plans/` |
 | --- | --- | --- | --- |
