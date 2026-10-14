@@ -1,0 +1,33 @@
+name: 'Main: retarget stray PRs to develop'
+
+# main is the default branch, so `gh pr create` and the web UI open PRs
+# against it by default. Anything that is not the Release PR (head: develop)
+# or a hotfix/* branch belongs on develop; move it there on open and say so.
+#
+# pull_request_target runs with write permission on the base repository.
+# This job never checks out or executes the PR's code; it only calls the API.
+
+on:
+  pull_request_target:
+    branches: [ main ]
+    types: [ opened ]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  retarget:
+    if: >-
+      github.event.pull_request.head.repo.full_name != github.repository
+      || (github.event.pull_request.head.ref != 'develop'
+          && !startsWith(github.event.pull_request.head.ref, 'hotfix/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move the PR onto develop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr edit "$PR" --repo "$REPO" --base develop
+          gh pr comment "$PR" --repo "$REPO" --body "Retargeted to \`develop\`. \`main\` only receives the \`Release: v*\` PR from \`develop\` (and \`hotfix/*\` branches); everything else merges to \`develop\` and ships with the next release. Your diff is unchanged and nothing else is needed."

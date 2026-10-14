@@ -99,6 +99,12 @@ bun run type-check
 
 The bundle is committed and marked `linguist-generated`; commit it together with any `src/cli/` change (`bun run check` enforces this).
 
+## Contributing and releases
+
+Branch from `develop` and open your PR against `develop`. `main` is the release target: the only PR that merges into it is the `Release: v*` PR that the release automation opens from `develop`, and merging that PR tags and publishes the release. A PR opened against `main` by mistake is retargeted to `develop` automatically and can't merge there anyway.
+
+`main` stays the default branch because it is what `npx skills add JarvusInnovations/specops` installs, so a fresh install always gets the latest release rather than unreleased work.
+
 ## What's inside
 
 | Path | What it is |
