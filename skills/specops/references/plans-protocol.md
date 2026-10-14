@@ -178,6 +178,18 @@ Sometimes the deliverable is a *decision*, not code: a spec or contract authored
 - **Shipping it.** The proposal lands as a record so the contract is versioned and shareable; merging the plan/spec does **not** imply the work is built — the plan stays `blocked`. Signal intent on the PR: open it as a draft and title it so reviewers see it's a proposal, e.g. `docs(specs): PROPOSAL — <feature>`. Cross-team agreement gates *implementation*, not the merge of the record.
 - **Closing the loop.** When the awaited thing lands, clear the matching `awaits:` entry and either flip the plan to `in-progress`, or spawn the implementation plan(s) with `depends:` on the now-merged contract and let the proposal freeze as the historical record of the decision.
 
+## Updating implementation branches
+
+**Keep implementation branches linear.** For every plan, whether executed alone or in parallel, update the implementation branch by rebasing onto the current integration branch; never merge the integration branch into it. This keeps the PR's commits a linear delta that is straightforward to review. Explicit repository policy takes precedence. Coordinate with other contributors before rewriting a shared branch; `--force-with-lease` does not replace that coordination.
+
+1. Fetch the remote, then rebase onto the updated integration branch (for example, `git fetch origin` followed by `git rebase origin/develop`). Use the project's actual remote and integration branch.
+2. Preserve intended behavior when resolving conflicts. If replacing earlier merges with a rebase, inspect and re-apply any semantic resolutions those merges introduced — a conflict-free rebase does not prove those resolutions survived.
+3. Rerun affected validation against the rebased tree and fix integration breakage. Refresh the plan's validation evidence; a pass against the old base is not evidence for the new tree.
+4. Keep the [canonical closeout commit](#the-closeout-commit) last. If review fixes or integration work arrive after closeout, reopen the plan to `in-progress`, complete the work and affected validation, then close it again in a new canonical closeout commit at the branch tip. Alternatively, reorder the new changes before the existing closeout and refresh its evidence before merging.
+5. Push rewritten published history with `--force-with-lease`, and confirm required CI checks pass on the resulting PR head.
+
+This governs updates **within** an implementation branch. It does not prohibit the final merge commit that lands the PR into the integration branch. A branch tip remains unambiguous even with merge commits; closeout-last is a separate ordering requirement, and any commit added after closeout violates it.
+
 ## The closeout commit
 
 The last commit on the implementation branch, before merge, does **five things in one shot** under the message `chore(plans): mark <slug> done (PR #<n>)`:
@@ -354,4 +366,5 @@ Suppose `workspace.md` ships scaffolding and discovers `.env.example` is natural
 - [ ] Follow-ups section populated (Issue / Deferred to plan / Tracked as / None)
 - [ ] Every `Deferred to <plan>` has an accompanying edit to that downstream plan, in the same commit, and the downstream plan is still `planned`
 - [ ] Commit message: `chore(plans): mark <slug> done (PR #<n>)`
+- [ ] Implementation branch follows [the branch-update rule](#updating-implementation-branches); affected validation reflects the rebased tree, and the canonical closeout commit is last
 - [ ] No silent rewrites of Validation criteria to match what was built

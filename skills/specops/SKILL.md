@@ -304,7 +304,9 @@ pr: 42                   # set at closeout
 
 A plan's body has a fixed template: **Scope**, **Implements**, **Approach**, **Validation** (load-bearing checkbox list — converts "in-progress" to "done"), **Risks / unknowns**, **Notes** (populated at closeout), **Follow-ups** (populated at closeout).
 
-The full protocol — frontmatter schema, body template, status lifecycle, the closeout-commit ritual, the Follow-ups taxonomy (Issue / Deferred to plan / Tracked as / None), and the deferral-absorption rule — is in [references/plans-protocol.md](references/plans-protocol.md). Read it before authoring or closing out a plan.
+The full protocol — frontmatter schema, body template, status lifecycle, branch updates, the closeout-commit ritual, the Follow-ups taxonomy (Issue / Deferred to plan / Tracked as / None), and the deferral-absorption rule — is in [references/plans-protocol.md](references/plans-protocol.md). Read it before authoring, implementing, or closing out a plan.
+
+**Keep implementation branches linear:** rebase onto the integration branch instead of merging it in, rerun affected validation, and keep closeout last. Follow the [branch-update rule](references/plans-protocol.md#updating-implementation-branches) for repository-policy precedence, shared-branch coordination, preserving semantic resolutions, and publishing rewritten history.
 
 ### When (and when not) to author a plan
 
