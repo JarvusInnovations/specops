@@ -12,7 +12,7 @@ The established trigger phrase is **"drain the DAG"** — when the human says it
 
 ## When to use this
 
-- A set of plans is authored, reviewed, and `planned`, and their specs are already merged (spec-first is done — see [plans-protocol.md §Relationship to `specs/`](plans-protocol.md#relationship-to-specs)).
+- A set of plans is authored, reviewed, and `planned`, and their specs merged alongside them — the [bootstrap batch](plans-protocol.md#the-feature-branch), the one scenario where `planned` plans sit on the integration branch (spec-first is done — see [plans-protocol.md §Relationship to `specs/`](plans-protocol.md#relationship-to-specs)). Drain it promptly; a batch that sits is a second backlog.
 - The target repo has a CI + pull-request flow you can gate on.
 - The batch is big enough that serial hand-implementation is the bottleneck.
 

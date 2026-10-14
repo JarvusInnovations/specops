@@ -123,6 +123,43 @@ Transitions are commits with specific message conventions:
 
 **Splitting a plan**: if a `planned` plan grows too big, rename it and add the new plan(s) with `depends:` updated to reflect the new partitioning. Do this as its own PR (not mid-implementation) so the DAG change is reviewable on its own. If the plan is already `in-progress`, finish or abandon it before splitting — don't restructure under your own feet.
 
+## The feature branch
+
+The default lifecycle of a plan is **one branch and one PR, framed around the implementation that will ship, opened at the start and merged once** — with the plan **complete**. Never a spec-only PR.
+
+1. **Start from the tracker.** The work is usually an issue (or a milestone criterion) in the project's issue tracker; link it in the plan's `issues:` field. Issues are where future work, priority, and dependencies between not-yet-started work live — see [Issues are the backlog](#issues-are-the-backlog).
+2. **Branch** off the integration branch (`develop`, `main`, or the project's equivalent), named for the feature — not for the spec.
+3. **Spec commits first.** Any change to desired state lands as `docs(specs):` commit(s), ordered ahead of every implementation commit that depends on it. The spec diff is the contract the reviewer reads first.
+4. **Author the plan** as a `plans/<slug>.md` commit (`status: planned` or `in-progress`). A small change that is already verified by the time you write it up may author its plan directly at `status: done` in the closeout commit — but the file still ships in the same PR.
+5. **Open the PR now, as a draft, titled for the feature.** At this point it holds only the spec and the plan. That is intended: the contract is reviewable before the code exists, on the very PR that will carry the code. It is *not* a spec-only PR — its future contains the implementation, and it does not merge until that implementation and the closeout are aboard.
+6. **Implement** to the spec, on the same branch.
+7. **Close out** in the last commit — see [The closeout commit](#the-closeout-commit). The closeout stays the branch tip through review (see [Updating implementation branches](#updating-implementation-branches)).
+8. **Mark the PR ready, get it reviewed, merge** with a real merge commit. The reviewer sees the contract (the spec diff), the conformance evidence (the implementation), and the plan's Validation in one place, ordered so the spec still leads.
+
+**Merge completed plans.** A `planned` or `in-progress` plan on the integration branch is the exception, not the norm. Exactly two scenarios justify one:
+
+- **A bootstrap batch** — a new project, or a large design arc, whose specs were mapped out together on a [draft planning PR](../SKILL.md#where-in-development-specs-live-the-draft-planning-pr) and partitioned into a *set* of plans. The set merges `planned` so the [parallel execution protocol](parallel-execution-protocol.md) can drain it; the expectation is that it *is* drained promptly, not parked.
+- **A [proposal plan](#proposal-plans)** — an agreed contract whose build is gated on an external actor; it merges `blocked` with `awaits:` so the record is versioned and shareable.
+
+Anything else that is "planned but not started" is an **issue**, not a plan file. A `plans/` directory that accumulates `planned` entries has become a second backlog — the smell this protocol exists to avoid.
+
+### Issues are the backlog
+
+Plans and specs do not replace the issue tracker. If they start to feel like they do, something is wrong:
+
+|                      | Issue tracker                                    | `specs/`                        | `plans/`                          |
+| -------------------- | ------------------------------------------------ | ------------------------------- | --------------------------------- |
+| Answers              | What's wanted, how urgent, what it waits on      | What must be true               | How we're getting there *now*     |
+| Written when         | Whenever something is noticed                    | Before the behavior changes     | When the work starts              |
+| Lifetime             | Until closed                                     | For the life of the system      | Frozen at merge                   |
+| Dependencies between | Future work (issue links, epics, milestones)     | —                               | Work in flight (`depends:`)       |
+
+Consequences for the protocol:
+
+- `depends:` orders plans that exist; it is not a way to pre-register future work. If the thing you depend on hasn't been started, file (or link) its issue and reference it from Scope.
+- Follow-ups default to the `Issue` shape in the [Follow-ups taxonomy](#follow-ups-taxonomy). `Deferred to <plan>` is only available when the downstream plan already exists on the integration branch — i.e. during a bootstrap batch.
+- Every plan carries `issues:` when a tracker issue exists; it's how a person navigates from the task they were assigned to the plan that executed it.
+
 <a id="external-blockers"></a>
 
 ## External blockers (`awaits:`)
@@ -180,7 +217,7 @@ Sometimes the deliverable is a *decision*, not code: a spec or contract authored
 
 ## Updating implementation branches
 
-**Keep implementation branches linear.** For every plan, whether executed alone or in parallel, update the implementation branch by rebasing onto the current integration branch; never merge the integration branch into it. This keeps the PR's commits a linear delta that is straightforward to review. Explicit repository policy takes precedence. Coordinate with other contributors before rewriting a shared branch; `--force-with-lease` does not replace that coordination.
+**Keep implementation branches linear.** For every plan, whether executed alone or in parallel, update the implementation branch by rebasing onto the current integration branch; never merge the integration branch into it. This keeps the PR's commits a linear delta that is straightforward to review. Explicit, written repository policy takes precedence — for instance a repo that forbids rewriting any pushed branch and requires a fresh branch for a rebased PR — but a contributor's habit of merging the base in is not policy. Coordinate with other contributors before rewriting a shared branch; `--force-with-lease` does not replace that coordination.
 
 1. Fetch the remote, then rebase onto the updated integration branch (for example, `git fetch origin` followed by `git rebase origin/develop`). Use the project's actual remote and integration branch.
 2. Preserve intended behavior when resolving conflicts. If replacing earlier merges with a rebase, inspect and re-apply any semantic resolutions those merges introduced — a conflict-free rebase does not prove those resolutions survived.
@@ -216,7 +253,7 @@ Use when the work is actionable but **not owned by any planned-or-in-progress pl
 
 ### `Deferred to [`<plan>`](<plan>.md) — short description`
 
-Use when an **unstarted (`status: planned`) downstream plan** should own the work. **The same closeout commit must also edit that downstream plan to absorb the deferral** — typically a new bullet under Approach and a new criterion under Validation, cross-linked back to the deferring plan.
+Use when an **unstarted (`status: planned`) downstream plan** should own the work. That downstream plan must already exist on the integration branch — which in practice means a [bootstrap batch](#the-feature-branch) is in flight; outside a batch there is no `planned` plan to defer to, so use the `Issue` shape (the default). **The same closeout commit must also edit that downstream plan to absorb the deferral** — typically a new bullet under Approach and a new criterion under Validation, cross-linked back to the deferring plan.
 
 Example (in the closing plan's Follow-ups):
 
@@ -263,20 +300,22 @@ None.
 Plans implement specs. Concretely:
 
 - **A plan's `specs:` field lists what it implements.** The implementation must match those specs — the spec-drift auditor will hold it accountable.
-- **Specs come first.** If you realize a spec needs to change mid-plan, the spec change is its own PR before the plan continues. Don't quietly drift the spec to match what you ended up coding.
+- **Specs come first.** If you realize a spec needs to change mid-plan, stop and make the spec change as its own `docs(specs):` commit, ordered ahead of every implementation commit that depends on it — by default riding the same PR, where the reviewer sees the contract and the conformance evidence together (see [The feature branch](#the-feature-branch)). Give the spec change a standalone PR only when the design itself is still being negotiated (that's a [draft planning PR](../SKILL.md#where-in-development-specs-live-the-draft-planning-pr)) or when the spec diff is substantial enough that it would drown in the implementation diff and deserves isolated review. Either way: don't quietly drift the spec to match what you ended up coding.
 - **A spec change ripples to its plans.** When a spec changes, the plans that list it in `specs:` may no longer describe correct motion. Review them and update those affected — revise a `planned` plan in place; flag the owner of an `in-progress` one rather than rewriting under them. Find them with `grep -l '<spec-path>' plans/*.md`.
 - **Plans don't propose specs.** Specs are decided through their own review process. A plan's job is execution against an already-agreed-on state.
-- **A merged spec is implemented or planned — never merely drafted.** On the main branch, every spec either matches the implementation or is claimed by a committed plan's `specs:` field (a `blocked` [proposal plan](#proposal-plans) counts). Specs still being designed live on a [draft planning PR](../SKILL.md#where-in-development-specs-live-the-draft-planning-pr) and merge together with their plan set. This is what lets the auditor treat every Table-1 gap as either planned motion or a violation — with no third "maybe it's just a draft" bucket.
+- **A merged spec is implemented or planned — never merely drafted.** On the main branch, every spec either matches the implementation or is claimed by a committed plan's `specs:` field (a `blocked` [proposal plan](#proposal-plans) counts). Because plans merge complete, "implemented" is the overwhelmingly common case; a `planned` plan on the integration branch is reserved for a bootstrap batch or a proposal (see [The feature branch](#the-feature-branch)). Specs still being designed live on a [draft planning PR](../SKILL.md#where-in-development-specs-live-the-draft-planning-pr) and merge together with their plan set. This is what lets the auditor treat every Table-1 gap as either planned motion or a violation — with no third "maybe it's just a draft" bucket.
 - **The spec-drift auditor reads `specs/`, never `plans/`.** Plans rot fast and are expected to. Specs are the auditable source of truth.
-- **Durable judgment belongs in specs, not frozen in plan Notes.** Closeout Notes capture decisions and gotchas — but a plan freezes, and a *governing principle* buried in a frozen plan is invisible to the next agent, who will re-litigate it. If a decision made during the plan will shape *future* work (not just record what happened in this one), promote it to the relevant spec or `principles.md` through the spec's own PR (per "Specs come first" above), and let the plan Note just point to it. This is the plans-side of the standing vigilance in [specops: ALWAYS watch for decisions and principles that belong in a spec](../SKILL.md#always-watch-for-decisions-and-principles-that-belong-in-a-spec).
+- **Durable judgment belongs in specs, not frozen in plan Notes.** Closeout Notes capture decisions and gotchas — but a plan freezes, and a *governing principle* buried in a frozen plan is invisible to the next agent, who will re-litigate it. If a decision made during the plan will shape *future* work (not just record what happened in this one), promote it to the relevant spec or `principles.md` through the spec-first flow (per "Specs come first" above), and let the plan Note just point to it. This is the plans-side of the standing vigilance in [specops: ALWAYS watch for decisions and principles that belong in a spec](../SKILL.md#always-watch-for-decisions-and-principles-that-belong-in-a-spec).
 
 ## After spec-complete
 
 Plans don't go away once the initial DAG completes. They become the standing workflow for every future feature:
 
-1. Update or add the relevant specs (own PR).
+1. Update or add the relevant specs — `docs(specs):` commits at the head of the feature branch.
 2. Add a new plan declaring how to bring code to the spec.
-3. Implement, close out, freeze.
+3. Implement, close out, open the PR, merge — the plan freezes.
+
+All on one branch, per [The feature branch](#the-feature-branch).
 
 Completed plans stay as historical record. Their merged-PR links plus completed-validation criteria are the project's working memory.
 

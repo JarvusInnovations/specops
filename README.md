@@ -2,7 +2,7 @@
 
 A Claude Code skill for **spec-driven development**: specs are the source of truth that declare the complete desired state of the software, paired with a lightweight **plan protocol** for tracking work-in-flight as a micro-DAG.
 
-Specs lead; code follows. Every chunk of work starts with a spec update, gets a plan declaring scope/dependencies/validation, and closes out by bringing the running software into conformance with the spec.
+Specs lead; code follows. Every chunk of work rides one feature branch: a spec update first, a plan declaring scope/dependencies/validation, the implementation that brings the running software into conformance, and a closeout commit — merged once, with the plan complete. The issue tracker stays the backlog; `plans/` is only what's in flight.
 
 Why specs and not docs: an implementer — human or agent — makes hundreds of micro-decisions, and the spec is what makes them match intent rather than guesswork. So a specops spec carries its own ***why*** — decisive governing **principles**, written down as first-class spec content and referenced *down* into the rules they govern, so the cases no rule enumerated get resolved the way the author would. And **spec↔code drift is a bug, not debt**: when the two diverge the spec is the authority until a review says otherwise, and a drift auditor keeps them honest.
 
