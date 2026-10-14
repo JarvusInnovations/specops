@@ -2,9 +2,8 @@
 
 A survey of the popular "spec-driven development" / spec-ops toolkits and the older
 lineages they descend from, distilling how **specops** differs *philosophically* — not
-feature-by-feature. This is the research backing for the comparison chart in the
-[README](../README.md#how-specops-differs); the chart is the curated summary, this note
-is the honest long form.
+feature-by-feature. The [chart](#the-chart) below is the curated summary; the rest of this note is the
+honest long form behind it.
 
 Researched against primary sources (project READMEs, official docs, maintainer posts) in
 **early 2026**. The agentic-development space moves fast — treat dated specifics
@@ -48,6 +47,39 @@ mature and broadly-integrated product. The goal here is an honest map of the des
 not a scoreboard.
 
 ---
+
+## The chart
+
+A map of where a representative handful of tools sit on the axes specops cares about. It
+is an honest map of the design space, not a scoreboard — several tools are stronger than
+specops on individual axes (notably BDD on drift enforcement, and Spec Kit and Kiro on
+agent/IDE integration).
+
+| Philosophical axis | **specops** | [Spec Kit][sk] | [Kiro][kiro] | [OpenSpec][os] | [BMAD][bmad] | [BDD / Gherkin][bdd] | [ADRs][adr] |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **Spec leads, or spec is a scaffold?** | Leads; stays authoritative for the system's life | Generates code; "living" in theory, forward-pipeline in practice | Launchpad; not enforced after the first build | Leads; canonical source of truth | Scaffold; code becomes truth, docs archived | Leads — executable contract code must satisfy | Neither — a log of *why*, not a spec of *what* |
+| **Timeless spec vs. temporal motion** | Hard split: specs frozen by review, plan freezes on merge | Tiered (spec/plan/tasks) but per-feature, no freeze-as-record | Conflated — tasks live in the same folder, no archive | Split: canonical specs + changes archived on merge (no dependency DAG) | Collapsed into one corpus, then discarded | Timeless only; no plan/work layer | Immutable point-in-time records; truth is the chain |
+| **Principles / "why" as first-class** | Decisive `principles.md`, referenced *down* into each spec | Yes — binding "constitution" | Yes — durable steering files | Yes — `project.md` conventions | Yes — `project-context.md` | No — concrete scenarios only | The original home for *why*, but frozen as a log |
+| **Drift as a bug** | Yes — dedicated spec-drift auditor agent | Partial — manual consistency gates | Weak — manual reconcile on request | Weak — structural validation only | Reframed as context-collapse; epic sharding | Strongest — divergence fails the build | None — silent staleness |
+| **Tooling weight** | Zero-dep drop-in skill (markdown + `node` CLI) | CLI install + project scaffold | Heaviest — VS Code fork + account + credits | npm CLI + scaffold; mature/packaged | Heaviest framework — personas, workflows, packs | Framework + maintained step-definition glue | Lightest — just markdown files |
+| **Built for many agents on one shared spec** | Yes — micro-decisions against one persistent spec | Mostly linear single-agent pipeline | Gated single spec; parallel *execution* fan-out | Parallel changes via folder isolation | Multi-agent role *relay* with handoffs | Human "three amigos"; predates agents | Humans documenting for future humans |
+
+[sk]: https://github.com/github/spec-kit
+[kiro]: https://kiro.dev/docs/specs/
+[os]: https://github.com/Fission-AI/OpenSpec
+[bmad]: https://github.com/bmad-code-org/BMAD-METHOD
+[bdd]: https://cucumber.io/docs/bdd/
+[adr]: https://martinfowler.com/bliki/ArchitectureDecisionRecord.html
+
+The work-tracking tools — agent **plan mode** (Claude Code, Cursor), **[Task Master][tm]**,
+and **[beads][beads]** — are left out of the chart on purpose: they have no desired-state
+spec layer, so the honest comparison is against specops' *plans* protocol, not its specs.
+All three live entirely in specops' temporal half (beads' git-native dependency graph is
+the closest prior art to the plans micro-DAG, and arguably more sophisticated on the pure
+work-graph axis). They get their own section [below](#work-tracking-tools-the-plans-layer-not-the-spec-layer).
+
+[tm]: https://github.com/eyaltoledano/claude-task-master
+[beads]: https://github.com/steveyegge/beads
 
 ## Spec-driven development tools
 
