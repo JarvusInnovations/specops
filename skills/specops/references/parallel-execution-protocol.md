@@ -53,7 +53,7 @@ Then dispatch the agent *into* that path: its brief names the directory to work 
 - **Manage worktrees explicitly in the target repo** — do not rely on a harness's generic "isolate this task" mode. The repo you're implementing in is often *not* the orchestrator's working directory, and explicit `git worktree add … origin/<branch>` guarantees both the right repo and the latest base.
 - Run agents **in the background** so a wave's plans execute concurrently; you get a notification per completion.
 - **Isolate shared live dependencies per agent.** Parallel agents that need a running service to test against — a database, a bound port — must each get their *own* (a per-agent container on a unique port), never one shared instance. Concurrent test runs otherwise collide with each other and with the orchestrator's own dev services, producing flaky, misleading failures.
-- **Use Sonnet for the implementation subagents** by default — it's the right capability/cost point for plan-sized coding work (reasoning + long tool-use budgets; implementing a plan is a many-hundred-tool-call task). Reach for a different model only with a specific reason, or when the human explicitly requests one. The orchestrator stays on the stronger model to do the reviews.
+- **Pick the builder model explicitly, never by inheritance.** The orchestrator runs on the strongest model available because it reviews and merges; implementation subagents run on a builder tier: **Sonnet by default** for plan-sized coding work (reasoning + long tool-use budgets; implementing a plan is a many-hundred-tool-call task), **Opus when the plan is correctness-critical** (migrations, concurrency, auth, anything whose review would otherwise need a second pass). **Every dispatch passes `model` explicitly.** An `Agent` call that omits it inherits the orchestrator's model, so a wave of builders silently runs on the scarcest, most expensive tier, and one usage-limit event on that tier kills every builder at once. As a backstop, set `CLAUDE_CODE_SUBAGENT_MODEL` (an alias such as `sonnet` or `opus`, or a full model id) in the `env` block of the user or project settings so an omitted `model` falls back to the builder tier instead of the orchestrator's; a per-call `model` still wins. Reach for the orchestrator's own model only when the human explicitly asks.
 - One plan → one branch → one worktree → one PR. Never fold two plans into one agent.
 
 ## The agent brief
@@ -75,7 +75,7 @@ Every dispatch must pin the same shape, or the results won't be reviewable or me
 This is the load-bearing half of the protocol. A subagent's confidence is not a merge criterion — **your review is.**
 
 - **Read every PR before merging; never rubber-stamp.** Budget the deepest reading for correctness-critical logic — authentication/authorization, database migrations, concurrency/locking, money, anything irreversible. Pull the diff and read the sensitive files, not just the agent's summary.
-- **Make fixes directly.** For a clear defect or improvement, edit the branch, commit, and push yourself rather than round-tripping the agent — you're already in the diff. Reserve sending it back for large or ambiguous rework. Real bugs get caught here: a safeguard with a concurrency (write-skew) hole, a revoke that isn't scoped to the caller's own resource, an enforcement path that trusts a token's claim instead of live state.
+- **Review in two passes, then route each finding.** First dispatch the [adversarial pre-review subagent](#the-adversarial-pre-review-pass) on the PR. Then read the diff yourself with its report in hand: the pass hunts for failures, your read judges spec conformance and owns the merge, and neither substitutes for the other. For each finding decide the route: a substantive fix goes back to the **same implementation subagent as a fix round** (resume it by its handle so it keeps the context it built the branch with; do not spawn a fresh builder for a fix), and a quick, unambiguous fix you make yourself on the branch, commit, and push, since you are already in the diff. Real bugs get caught here: a safeguard with a concurrency (write-skew) hole, a revoke that isn't scoped to the caller's own resource, an enforcement path that trusts a token's claim instead of live state.
 - **CI is the authoritative gate — not your local run.** Integration/DB tests routinely fail locally for environmental reasons (no database up, a stale schema, a port already taken) yet pass or self-skip in CI. Push, then confirm CI is green (`mergeStateStatus: CLEAN`, all checks pass) before merging. Don't merge on a local pass alone, and don't reject on a local-only failure without confirming CI reproduces it.
 - **Merge with a real merge commit — never squash.** Squash-merges rewrite branch commits into a new one, so the branch tip is never an ancestor of the target and merge-detection (`git branch --merged`, ancestry checks) can't tell what actually landed. Use the merge-commit method, delete the remote branch on merge.
 - **Clean up:** remove the worktree, delete the local branch, prune. Note that a PR merge tool often *can't* delete the local branch while its worktree still exists — remove the worktree first, then delete the branch.
@@ -83,7 +83,7 @@ This is the load-bearing half of the protocol. A subagent's confidence is not a 
 
 ### The adversarial pre-review pass
 
-For a correctness-critical branch, harden the gate by dispatching a dedicated **adversarial review subagent** before the human review — briefed to *refute* the branch, not summarize it. This pass reliably surfaces defect classes the build agent, the test suite, and a summarizing read all miss — enforcement paths whose caller strips the claim they check, reconcilers correct on fixture shapes but wrong on a real deployment's shape — because those need someone *hunting* for the failure, not describing the code.
+Harden the gate by dispatching a dedicated **adversarial review subagent** before the orchestrator's own read, on every branch and at the deepest brief on a correctness-critical one — briefed to *refute* the branch, not summarize it. It runs on the builder tier like any subagent, with `model` passed explicitly. This pass reliably surfaces defect classes the build agent, the test suite, and a summarizing read all miss — enforcement paths whose caller strips the claim they check, reconcilers correct on fixture shapes but wrong on a real deployment's shape — because those need someone *hunting* for the failure, not describing the code.
 
 The briefing shape is what makes it work — a generic "review this PR" produces admiration, not findings:
 
@@ -94,7 +94,7 @@ The briefing shape is what makes it work — a generic "review this PR" produces
 
 Two rules keep the pass honest within the gate:
 
-- **It hardens the human gate; it does not replace it.** The human (or orchestrator-as-reviewer) still reads the diff and owns the merge. Substituting the adversarial pass for that review happens only on the human's explicit authorization, disclosed at merge time — never silently.
+- **It hardens the orchestrator's gate; it does not replace it.** The orchestrator (or human) still reads the diff with the pass's report in hand, routes each finding (fix round to the same builder, or a direct quick fix), and owns the merge. Substituting the adversarial pass for that read happens only on the human's explicit authorization, disclosed at merge time — never silently.
 - **Findings are executed before the closeout commit**, so the closeout-last invariant survives the review round-trip: fix commits land, then the closeout re-lands as the branch tip.
 
 ## Conflicts between parallel plans
@@ -120,8 +120,8 @@ Recognize these and **do not force an auto-merge.** Keep the plan `planned`, and
 - [ ] Ready set recomputed from **merge state** before each wave (not a fixed upfront schedule).
 - [ ] For each ready plan the **orchestrator creates the worktree** off the latest integration branch, then dispatches its agent **concurrently**.
 - [ ] Each brief pins: read-first list, implement-to-spec, build+test, push+PR, **do-not-merge**, close-out, concurrency note, report-back.
-- [ ] Every PR **reviewed** (deepest on correctness-critical code); fixes applied directly.
-- [ ] Correctness-critical branches got an **adversarial pre-review pass** (refute-briefed, attack surfaces enumerated, CONFIRMED/PLAUSIBLE discipline); findings executed **before** the closeout commit.
+- [ ] Every PR got an **adversarial pre-review pass** (refute-briefed, attack surfaces enumerated, CONFIRMED/PLAUSIBLE discipline; deepest on correctness-critical code), then the orchestrator's **own read** with that report in hand.
+- [ ] Each finding **routed**: fix round to the same implementation subagent (resumed, not respawned), or a direct quick fix; findings executed **before** the closeout commit.
 - [ ] **CI green** confirmed before every merge; local-only failures reconciled against CI.
 - [ ] **Real merge commit**, remote branch deleted, worktree removed, local branch deleted, remote pruned.
 - [ ] Parallel-plan conflicts resolved by **rebase + keep-both + fix-integration + CI**, not by serializing away the parallelism.
