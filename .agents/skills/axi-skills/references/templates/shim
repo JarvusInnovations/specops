@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# TEMPLATE — rename this file to your tool name (e.g. `mytool`) and rename the
+# sibling bundle to match (`mytool.mjs`). Commit it EXECUTABLE:
+#   chmod 755 skills/mytool/scripts/mytool
+#
+# Shim so the bundled CLI can be invoked as `scripts/mytool <command>` instead of
+# `node …/mytool.mjs`. Never run this shim with `node` — it's bash.
+exec node "$(dirname "$0")/mytool.mjs" "$@"

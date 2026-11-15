@@ -1,0 +1,31 @@
+# TEMPLATE — .github/workflows/check.yml
+# CI drift gate: fails if the committed bundle or SKILL.md generated regions are
+# stale relative to src/cli/ (someone changed source without rebuilding), plus
+# type-check and tests. Adjust the bun version and script names to your repo.
+
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The committed bundle's version is injected from `git describe`;
+          # full history + tags keep that stable across CI runs (without this,
+          # the version-normalize in build-cli.ts is still your safety net).
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run type-check
+      # Fails if scripts/mytool.mjs or SKILL.md's generated regions are stale
+      # relative to src/cli/ — i.e. source changed without a rebuild + commit.
+      - run: bun run check
+      - run: bun test
