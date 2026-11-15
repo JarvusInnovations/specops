@@ -35,8 +35,16 @@ export const COMMAND_GROUPS: CommandGroup[] = [
     group: "Session",
     commands: [
       {
-        usage: "hook install [--scope project|global] [--dir <path>] | hook status | hook uninstall [--scope project|global]",
-        summary: "Manage the SessionStart hook that loads this repo's plans dashboard at the start of every agent session.",
+        usage: "setup hooks [--scope user|project] [--dir <path>]",
+        summary: "Install (or repair) the SessionStart hook that loads this repo's plans dashboard at the start of every agent session. Default scope is project.",
+      },
+      {
+        usage: "setup hooks status [--scope user|project] [--dir <path>]",
+        summary: "Report where the hook is installed — both scopes unless one is named.",
+      },
+      {
+        usage: "setup hooks uninstall [--scope user|project] [--dir <path>]",
+        summary: "Remove the hook from that scope's settings file, leaving other hooks untouched.",
       },
     ],
   },

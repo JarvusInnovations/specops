@@ -84,7 +84,10 @@ skills/specops/scripts/specops                    # dashboard: ready / blocked /
 skills/specops/scripts/specops next               # full readiness breakdown (ready / awaiting / blocked)
 skills/specops/scripts/specops next --slugs-only  # ready slugs, one per line (scripting)
 skills/specops/scripts/specops dag --fence        # Mermaid graph of the DAG
+skills/specops/scripts/specops setup hooks        # install or repair the SessionStart dashboard hook (project scope)
 ```
+
+`setup hooks status` and `setup hooks uninstall` report and remove the hook; `--scope user` targets `~/.claude/settings.json` instead of the repo's. (Earlier releases called this `hook install|status|uninstall` with `--scope global`; those now fail with a hint naming the new call.)
 
 To read or edit a single plan, open its file; the CLI deliberately has no `view` command.
 
