@@ -367,7 +367,9 @@ For each hit: a `planned` plan may need its scope, approach, or validation revis
 
 ### Session
 
-- `scripts/specops hook install [--scope project|global] [--dir <path>] | hook status | hook uninstall [--scope project|global]` — Manage the SessionStart hook that loads this repo's plans dashboard at the start of every agent session.
+- `scripts/specops setup hooks [--scope user|project] [--dir <path>]` — Install (or repair) the SessionStart hook that loads this repo's plans dashboard at the start of every agent session. Default scope is project.
+- `scripts/specops setup hooks status [--scope user|project] [--dir <path>]` — Report where the hook is installed — both scopes unless one is named.
+- `scripts/specops setup hooks uninstall [--scope user|project] [--dir <path>]` — Remove the hook from that scope's settings file, leaving other hooks untouched.
 
 <!-- END GENERATED: command-reference -->
 

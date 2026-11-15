@@ -1344,31 +1344,138 @@ async function dagCommand(args) {
   return renderOutput2([diagram, renderLines("warnings", warnings)]);
 }
 
-// src/cli/commands/hook.ts
-import { readFileSync as readFileSync2, writeFileSync, mkdirSync, existsSync as existsSync2 } from "node:fs";
+// src/cli/commands/setup.ts
+import { readFileSync as readFileSync2, writeFileSync, mkdirSync } from "node:fs";
 import { homedir as homedir4 } from "node:os";
 import { dirname, join as join2, resolve as resolve2 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 import { execSync } from "node:child_process";
-var HOOK_HELP = `usage: specops hook <install|uninstall> [--scope project|global] [--dir <path>]
-       specops hook status
+
+// src/cli/flags.ts
+var FLAG_START = /^--?[A-Za-z]/;
+function parseFlags(command, argv, spec) {
+  const valueFlags = spec.value ?? [];
+  const booleanFlags = spec.boolean ?? [];
+  const positionals = [];
+  const flags = {};
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--") {
+      positionals.push(...argv.slice(i + 1));
+      break;
+    }
+    if (!FLAG_START.test(arg)) {
+      positionals.push(arg);
+      continue;
+    }
+    const eq = arg.indexOf("=");
+    const typed = eq === -1 ? arg : arg.slice(0, eq);
+    const name = typed.startsWith("--") ? typed.slice(2) : void 0;
+    const isValue = name !== void 0 && valueFlags.includes(name);
+    const isBoolean = name !== void 0 && booleanFlags.includes(name);
+    if (!isValue && !isBoolean) {
+      const hint = spec.deprecated?.[typed];
+      throw new AxiError(`Unknown flag \`${typed}\` for \`${command}\``, "VALIDATION_ERROR", [
+        hint ?? validFlagsLine(command, spec)
+      ]);
+    }
+    if (name in flags) {
+      throw new AxiError(`Flag --${name} was given more than once`, "VALIDATION_ERROR", [
+        validFlagsLine(command, spec)
+      ]);
+    }
+    if (isBoolean) {
+      if (eq !== -1) {
+        throw new AxiError(`Flag --${name} takes no value`, "VALIDATION_ERROR");
+      }
+      flags[name] = true;
+      continue;
+    }
+    let value;
+    if (eq !== -1) {
+      value = arg.slice(eq + 1);
+    } else {
+      const next = argv[i + 1];
+      if (next !== void 0 && !/^--[A-Za-z]/.test(next) && next !== "--") {
+        value = next;
+        i++;
+      }
+    }
+    if (value === void 0 || value === "") {
+      throw new AxiError(`Flag --${name} requires a value`, "VALIDATION_ERROR", [
+        validFlagsLine(command, spec)
+      ]);
+    }
+    flags[name] = value;
+  }
+  return { positionals, flags };
+}
+function validFlagsLine(command, spec) {
+  const all = [...(spec.value ?? []).map((f) => `--${f} <value>`), ...(spec.boolean ?? []).map((f) => `--${f}`)];
+  return `Valid flags for \`${command}\`: ${all.length ? all.join(", ") : "(none)"} (--help is always allowed)`;
+}
+function shellQuote(arg) {
+  if (/^[A-Za-z0-9_@%+=:,./~-]+$/.test(arg)) return arg;
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
+
+// src/cli/commands/setup.ts
+var SETUP_HELP = `usage: specops setup hooks           [--scope user|project] [--dir <path>]
+       specops setup hooks status    [--scope user|project] [--dir <path>]
+       specops setup hooks uninstall [--scope user|project] [--dir <path>]
 
 Manage the SessionStart hook that loads this repo's plans dashboard at the start
 of every agent session \u2014 so an agent sees what's ready / blocked from turn 1.
 
+Bare \`setup hooks\` installs the hook, or repairs it if it is stale. It is
+idempotent: a repeat that changes nothing leaves the settings file untouched.
+
 Default scope is project: the hook is written to <repo>/.claude/settings.json, so
 it only fires for sessions in that repo and reads its plans/ (sessions start at
 the repo root). --dir sets the repo root (default: the git repo root of the
-current directory). Use --scope global to install it in ~/.claude/settings.json
-for every session instead.
+current directory; never the bare current directory). Use --scope user to
+install it in ~/.claude/settings.json for every session instead.
 
-  hook install                              project hook for the current repo (default)
-  hook install --dir ../other-repo          project hook for another repo
-  hook install --scope global               hook for every session, any repo
-  hook uninstall [--scope project|global]   remove it (default scope project)
-  hook status                               report where the hook is installed`;
+  setup hooks                          project hook for the current repo (default)
+  setup hooks --dir ../other-repo      project hook for another repo
+  setup hooks --scope user             hook for every session, any repo
+  setup hooks status                   report where the hook is installed (both scopes)
+  setup hooks status --scope project   report one scope only
+  setup hooks uninstall                remove it (default scope project)
+`;
 var MARKER = "specops";
 var TIMEOUT_SECONDS = 10;
+var COMMAND = "setup hooks";
+var TOPICS = ["hooks"];
+var ACTIONS = ["status", "uninstall"];
+var SCOPES = ["user", "project"];
+var FLAG_SPEC = {
+  value: ["scope", "dir"],
+  deprecated: {
+    "--global": "--global is not a flag of this command; use --scope user",
+    "--user": "--user is not a flag of this command; use --scope user",
+    "--project": "--project is not a flag of this command; use --scope project (the default)"
+  }
+};
+function call(action, flags) {
+  const parts = [cliInvocation(), COMMAND];
+  if (action) parts.push(action);
+  if (flags.scope) parts.push("--scope", shellQuote(flags.scope));
+  if (flags.dir) parts.push("--dir", shellQuote(flags.dir));
+  return parts.join(" ");
+}
+function usageLines() {
+  const cli = cliInvocation();
+  return [
+    `Usage: ${cli} setup hooks [--scope user|project] [--dir <path>]   (install or repair)`,
+    `Usage: ${cli} setup hooks status [--scope user|project] [--dir <path>]`,
+    `Usage: ${cli} setup hooks uninstall [--scope user|project] [--dir <path>]`
+  ];
+}
+function stringFlag(flags, name) {
+  const value = flags[name];
+  return typeof value === "string" ? value : void 0;
+}
 function gitRoot() {
   try {
     const root = execSync("git rev-parse --show-toplevel", {
@@ -1381,8 +1488,8 @@ function gitRoot() {
   }
 }
 function projectBase(flags) {
-  const dir = flags.dir;
-  if (typeof dir === "string" && dir) return resolve2(dir);
+  const dir = stringFlag(flags, "dir");
+  if (dir) return resolve2(dir);
   const root = gitRoot();
   if (root) return root;
   throw new AxiError(
@@ -1391,19 +1498,23 @@ function projectBase(flags) {
     ["Pass --dir <project-path>, or run from inside the target repo"]
   );
 }
-function resolveScope(flags) {
-  const scope = flags.scope;
-  if (scope === void 0) return "project";
-  if (scope !== "project" && scope !== "global") {
-    throw new AxiError("--scope must be project or global", "VALIDATION_ERROR", [
-      "specops hook install                 (project \u2014 the default)",
-      "specops hook install --scope global"
+function parseScope(flags, action) {
+  const scope = stringFlag(flags, "scope");
+  if (scope === void 0) return void 0;
+  if (scope === "global") {
+    throw new AxiError("--scope global is now --scope user", "VALIDATION_ERROR", [
+      `Run \`${call(action, { scope: "user", dir: stringFlag(flags, "dir") })}\``
+    ]);
+  }
+  if (!SCOPES.includes(scope)) {
+    throw new AxiError(`Unknown --scope value: ${scope}`, "VALIDATION_ERROR", [
+      `Valid --scope values: ${SCOPES.join(", ")} (default: project)`
     ]);
   }
   return scope;
 }
 function settingsPath(scope, flags) {
-  const base = scope === "global" ? homedir4() : projectBase(flags);
+  const base = scope === "user" ? homedir4() : projectBase(flags);
   return join2(base, ".claude", "settings.json");
 }
 function shimPath() {
@@ -1411,122 +1522,231 @@ function shimPath() {
 }
 var PROJECT_HOOK_COMMAND = '"${CLAUDE_PROJECT_DIR}/.claude/skills/specops/scripts/specops"';
 function hookCommand(scope) {
-  return scope === "global" ? JSON.stringify(shimPath()) : PROJECT_HOOK_COMMAND;
+  return scope === "user" ? JSON.stringify(shimPath()) : PROJECT_HOOK_COMMAND;
+}
+function isPlainObject2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function readSettings(path) {
-  if (!existsSync2(path)) return {};
+  let raw;
   try {
-    const parsed = JSON.parse(readFileSync2(path, "utf8"));
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    throw new AxiError(`Could not parse ${path}`, "CONFIG_INVALID", ["Fix or remove the malformed JSON file"]);
+    raw = readFileSync2(path, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return void 0;
+    throw new AxiError(`Could not read ${path}: ${messageOf(error)}`, "CONFIG_UNREADABLE", [
+      "Fix the file's permissions; it was left untouched"
+    ]);
   }
+  const invalid = (why) => new AxiError(`Could not parse ${path}: ${why}`, "CONFIG_INVALID", [
+    "Fix or remove the malformed JSON file; it was left untouched"
+  ]);
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw invalid(messageOf(error));
+  }
+  if (!isPlainObject2(parsed)) throw invalid("expected a JSON object at the top level");
+  if (parsed.hooks !== void 0) {
+    if (!isPlainObject2(parsed.hooks)) throw invalid("`hooks` is not an object");
+    const groups = parsed.hooks.SessionStart;
+    if (groups !== void 0 && !(Array.isArray(groups) && groups.every(isPlainObject2))) {
+      throw invalid("`hooks.SessionStart` is not an array of hook groups");
+    }
+  }
+  return parsed;
 }
 function writeSettings(path, settings) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(settings, null, 2)}
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, `${JSON.stringify(settings, null, 2)}
 `, "utf8");
+  } catch (error) {
+    throw new AxiError(`Could not write ${path}: ${messageOf(error)}`, "SETUP_FAILED", [
+      "Nothing was installed or removed; fix the path's permissions and re-run"
+    ]);
+  }
+}
+function messageOf(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+function isManaged(hook) {
+  return typeof hook.command === "string" && hook.command.includes(MARKER);
 }
 function managedCommand(settings) {
-  const groups = settings.hooks?.SessionStart;
-  if (!Array.isArray(groups)) return void 0;
-  for (const group of groups) {
-    for (const hook of group.hooks ?? []) {
-      if (typeof hook.command === "string" && hook.command.includes(MARKER)) return hook.command;
+  for (const group of settings.hooks?.SessionStart ?? []) {
+    if (!Array.isArray(group.hooks)) continue;
+    for (const hook of group.hooks) {
+      if (isManaged(hook)) return hook.command;
     }
   }
   return void 0;
 }
-async function hookCommand_(args) {
-  const verb = args[0];
-  const rest = args.slice(1);
-  switch (verb) {
-    case "install":
-      return install(rest);
-    case "uninstall":
-      return uninstall(rest);
+async function setupCommand(args) {
+  const { positionals, flags } = parseFlags(COMMAND, args, FLAG_SPEC);
+  const [topic, action, ...extra] = positionals;
+  const carried = { scope: stringFlag(flags, "scope"), dir: stringFlag(flags, "dir") };
+  if (topic !== "hooks") {
+    throw new AxiError(
+      topic === void 0 ? "Missing setup subcommand" : `Unknown setup subcommand: ${topic}`,
+      "VALIDATION_ERROR",
+      [`Valid setup subcommands: ${TOPICS.join(", ")}`, ...usageLines()]
+    );
+  }
+  if (action !== void 0 && !ACTIONS.includes(action)) {
+    if (action === "install" || action === "repair") {
+      throw new AxiError(
+        `\`setup hooks ${action}\` is not an action \u2014 bare \`setup hooks\` installs or repairs`,
+        "VALIDATION_ERROR",
+        [`Run \`${call(void 0, carried)}\``]
+      );
+    }
+    throw new AxiError(`Unknown setup hooks action: ${action}`, "VALIDATION_ERROR", [
+      `Valid actions: ${ACTIONS.join(", ")} (no action = install or repair)`,
+      ...usageLines()
+    ]);
+  }
+  if (extra.length > 0) {
+    throw new AxiError(
+      `Unexpected argument${extra.length > 1 ? "s" : ""}: ${extra.map(shellQuote).join(" ")}`,
+      "VALIDATION_ERROR",
+      [`\`setup hooks\` takes at most one action (${ACTIONS.join(", ")})`, ...usageLines()]
+    );
+  }
+  const scope = parseScope(flags, action);
+  switch (action) {
     case "status":
-      return status();
+      return status(scope, flags);
+    case "uninstall":
+      return uninstall(scope ?? "project", flags);
     default:
-      throw new AxiError(`Unknown hook subcommand: ${verb ?? "(none)"}`, "VALIDATION_ERROR", [
-        "Use: hook install [--scope] [--dir] | hook uninstall [--scope] | hook status"
-      ]);
+      return install(scope ?? "project", flags);
   }
 }
-function install(args) {
-  const { flags } = parseArgs(args);
-  const scope = resolveScope(flags);
+function install(scope, flags) {
   const path = settingsPath(scope, flags);
   const command = hookCommand(scope);
-  const settings = readSettings(path);
+  const settings = readSettings(path) ?? {};
   const [updated, changed] = computeSessionStartHookUpdate(settings, {
     marker: MARKER,
     command,
     timeoutSeconds: TIMEOUT_SECONDS
   });
-  if (changed) writeSettings(path, updated);
+  if (changed) {
+    writeSettings(path, updated);
+    const written = readSettings(path);
+    if (!written || managedCommand(written) !== command) {
+      throw new AxiError(`Hook was not found in ${path} after writing it`, "SETUP_FAILED", [
+        `Run \`${call("status", { scope, dir: stringFlag(flags, "dir") })}\` to inspect`
+      ]);
+    }
+  }
+  const dir = stringFlag(flags, "dir");
   return renderOutput2([
-    renderObject({ hook: changed ? "installed" : "already up to date", scope, file: path, runs: command }),
+    renderObject({ hook: changed ? "installed" : "already up to date (no-op)", scope, file: path, runs: command }),
     renderHelp([
-      "Every session in this scope opens with the plans dashboard",
-      `Run \`specops hook uninstall --scope ${scope}\` to remove it`
+      changed ? "Restart your agent session to load the hook \u2014 every session in this scope opens with the plans dashboard" : "Every session in this scope opens with the plans dashboard",
+      `Run \`${call("uninstall", { scope, dir })}\` to remove it`
     ])
   ]);
 }
-function uninstall(args) {
-  const { flags } = parseArgs(args);
-  const scope = resolveScope(flags);
+function uninstall(scope, flags) {
   const path = settingsPath(scope, flags);
-  if (!existsSync2(path)) {
+  const settings = readSettings(path);
+  if (!settings) {
     return renderObject({ hook: "not installed (no-op)", scope, file: path });
   }
-  const settings = readSettings(path);
   const groups = settings.hooks?.SessionStart;
   let removed = 0;
   if (Array.isArray(groups)) {
     for (const group of groups) {
-      const before = group.hooks?.length ?? 0;
-      if (group.hooks) {
-        group.hooks = group.hooks.filter(
-          (h) => !(typeof h.command === "string" && h.command.includes(MARKER))
-        );
-      }
-      removed += before - (group.hooks?.length ?? 0);
+      if (!Array.isArray(group.hooks)) continue;
+      const before = group.hooks.length;
+      group.hooks = group.hooks.filter((h) => !isManaged(h));
+      removed += before - group.hooks.length;
     }
-    settings.hooks.SessionStart = groups.filter((g) => (g.hooks?.length ?? 0) > 0);
+    if (removed > 0) {
+      settings.hooks.SessionStart = groups.filter((g) => !Array.isArray(g.hooks) || g.hooks.length > 0);
+    }
   }
   if (removed > 0) writeSettings(path, settings);
   return renderObject({ hook: removed > 0 ? "removed" : "not installed (no-op)", scope, file: path });
 }
-function status() {
+function status(scope, flags) {
   const describe = (path) => {
-    const command = existsSync2(path) ? managedCommand(readSettings(path)) : void 0;
+    const settings = readSettings(path);
+    const command = settings ? managedCommand(settings) : void 0;
     return command ? { installed: "yes", runs: command } : { installed: "no" };
   };
-  const globalPath = join2(homedir4(), ".claude", "settings.json");
-  const rows = [{ scope: "global", file: globalPath, ...describe(globalPath) }];
-  const root = gitRoot();
-  if (root) {
-    const projectPath = join2(root, ".claude", "settings.json");
+  const rows = [];
+  if (scope === void 0 || scope === "user") {
+    const userPath = settingsPath("user", flags);
+    rows.push({ scope: "user", file: userPath, ...describe(userPath) });
+  }
+  if (scope === "project") {
+    const projectPath = settingsPath("project", flags);
     rows.push({ scope: "project", file: projectPath, ...describe(projectPath) });
-  } else {
-    rows.push({ scope: "project", file: "(cwd is not a git repo \u2014 pass --dir)", installed: "n/a" });
+  } else if (scope === void 0) {
+    const dir = stringFlag(flags, "dir");
+    const root = dir ? resolve2(dir) : gitRoot();
+    if (root) {
+      const projectPath = join2(root, ".claude", "settings.json");
+      rows.push({ scope: "project", file: projectPath, ...describe(projectPath) });
+    } else {
+      rows.push({ scope: "project", file: "(cwd is not a git repo \u2014 pass --dir)", installed: "n/a" });
+    }
   }
   return renderOutput2([
     renderObject({ hooks: rows }),
-    renderHelp(["Run `specops hook install` to load this repo's plans dashboard each session"])
+    renderHelp(
+      rows.some((row) => row.installed === "yes") ? [] : [`Run \`${call(void 0, {})}\` to load this repo's plans dashboard each session`]
+    )
+  ]);
+}
+var RETIRED_VERBS = {
+  install: "setup hooks",
+  status: "setup hooks status",
+  uninstall: "setup hooks uninstall"
+};
+async function retiredHookCommand(args) {
+  const cli = cliInvocation();
+  const verbIndex = args.findIndex((a) => !a.startsWith("-"));
+  const verb = verbIndex === -1 ? void 0 : args[verbIndex];
+  const replacement = verb === void 0 ? void 0 : RETIRED_VERBS[verb];
+  if (!replacement) {
+    throw new AxiError("`hook` is now `setup hooks`", "VALIDATION_ERROR", [
+      `Run \`${cli} setup hooks\` to install or repair (was \`hook install\`)`,
+      `Run \`${cli} setup hooks status\` (was \`hook status\`)`,
+      `Run \`${cli} setup hooks uninstall\` (was \`hook uninstall\`)`
+    ]);
+  }
+  const rest = args.filter((_, i) => i !== verbIndex);
+  const carried = [];
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i];
+    if (arg === "--scope=global") {
+      carried.push("--scope", "user");
+    } else if (arg === "--scope" && rest[i + 1] === "global") {
+      carried.push("--scope", "user");
+      i++;
+    } else {
+      carried.push(shellQuote(arg));
+    }
+  }
+  throw new AxiError(`\`hook ${verb}\` is now \`${replacement}\``, "VALIDATION_ERROR", [
+    `Run \`${[cli, replacement, ...carried].join(" ")}\``
   ]);
 }
 
 // src/cli/cli.ts
-var VERSION = true ? "v1.1.2" : "dev";
+var VERSION = true ? "v1.7.0-7-g374ea3e" : "dev";
 var TOP_HELP = `usage: specops [command] [args] [flags]
 
 commands:
   (none)=home dashboard for the current repo's plans
   next        plans ordered by readiness (ready / awaiting / blocked)
   dag         Mermaid graph of the plans DAG
-  hook        manage the SessionStart plans-dashboard hook
+  setup hooks install / repair, report, or remove the SessionStart plans-dashboard hook
 
 flags: --help, -v/--version, --dir <path> (plans dir; default ./plans)
 
@@ -1538,17 +1758,20 @@ examples:
   specops
   specops next --include-in-progress
   specops dag --fence --direction LR
-  specops hook install
+  specops setup hooks
 `;
 var COMMAND_HELP = {
   next: NEXT_HELP,
   dag: DAG_HELP,
-  hook: HOOK_HELP
+  setup: SETUP_HELP
+  // No entry for the retired `hook`: `hook … --help` must fail with the redirect too.
 };
 var COMMANDS = {
   next: nextCommand,
   dag: dagCommand,
-  hook: hookCommand_
+  setup: setupCommand,
+  // Retired: renamed to `setup hooks`. Kept registered so it fails with a redirect.
+  hook: retiredHookCommand
 };
 async function main(argv) {
   await runAxiCli({
@@ -1559,7 +1782,7 @@ async function main(argv) {
     home: homeCommand,
     commands: COMMANDS,
     getCommandHelp: (command) => COMMAND_HELP[command]
-    // Hooks are managed explicitly via the `hook` command. The SDK's auto-install
+    // Hooks are managed explicitly via the `setup hooks` command. The SDK's auto-install
     // is a no-op for a `.mjs`-named bundle (it only infers from `dist/bin/<name>.js`
     // or an extension-less binary), so no `hooks: false` is needed here.
   });
