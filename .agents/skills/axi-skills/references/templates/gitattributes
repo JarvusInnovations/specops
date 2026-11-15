@@ -1,0 +1,8 @@
+# TEMPLATE — append to your repo's .gitattributes so the large generated bundle
+# collapses in GitHub diffs and doesn't dominate code review.
+
+# Multi-skill repo (any skills/<name>/scripts/<name>-axi.mjs):
+skills/*/scripts/*-axi.mjs linguist-generated=true
+
+# Or, for a single tool, pin the exact path instead:
+# skills/mytool/scripts/mytool.mjs linguist-generated=true

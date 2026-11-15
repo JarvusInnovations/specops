@@ -367,7 +367,9 @@ For each hit: a `planned` plan may need its scope, approach, or validation revis
 
 ### Session
 
-- `scripts/specops hook install [--scope project|global] [--dir <path>] | hook status | hook uninstall [--scope project|global]` — Manage the SessionStart hook that loads this repo's plans dashboard at the start of every agent session.
+- `scripts/specops setup hooks [--scope user|project] [--dir <path>]` — Install (or repair) the SessionStart hook that loads this repo's plans dashboard at the start of every agent session. Default scope is project.
+- `scripts/specops setup hooks status [--scope user|project] [--dir <path>]` — Report where the hook is installed — both scopes unless one is named.
+- `scripts/specops setup hooks uninstall [--scope user|project] [--dir <path>]` — Remove the hook from that scope's settings file, leaving other hooks untouched.
 
 <!-- END GENERATED: command-reference -->
 
@@ -375,7 +377,7 @@ Run with no command (`scripts/specops`) for the current repo's plans dashboard �
 
 The CLI is a **thin determinism layer over a files-first workflow**: it computes readiness, ordering, the dependency graph, and warnings *across all plan files* — work an agent can't reliably do by eye. To read or edit a single plan, open its file directly; there is deliberately no `view`/`show` command.
 
-It ships as a self-contained bundle at `scripts/specops.mjs` (invoked through the `scripts/specops` shim), runs on `node ≥ 20` with no `npm install` and no `node_modules`, and is rebuilt from the TypeScript in `src/cli/` with `bun run build`. Run `scripts/specops hook install` once in a repo to load the plans dashboard into every agent session automatically.
+It ships as a self-contained bundle at `scripts/specops.mjs` (invoked through the `scripts/specops` shim), runs on `node ≥ 20` with no `npm install` and no `node_modules`, and is rebuilt from the TypeScript in `src/cli/` with `bun run build`. Run `scripts/specops setup hooks` once in a repo to load the plans dashboard into every agent session automatically.
 
 ## Setting up spec-driven development in a new project
 
@@ -462,7 +464,7 @@ The plans protocol gives a project a structured way to track work-in-flight with
 1. **Create the `plans/` directory** at the project root.
 2. **Write `plans/README.md`** that briefly states what plans are (motion vs state) and points at [references/plans-protocol.md](references/plans-protocol.md) for the full spec. Resist the urge to maintain a DAG drawing or status table inside it — both rot. The `specops` CLI regenerates that view on demand.
 3. **Document the protocol in the project's CLAUDE.md** — covered by [The CLAUDE.md hook](#the-claudemd-hook) block, which already states the plans-are-the-planning-system rule and points at the skill for the full protocol (statuses, closeout commit, Follow-ups taxonomy). Don't restate the protocol in CLAUDE.md — keep it lean and let the skill carry the detail.
-4. **Use the `specops` CLI in-place from the skill.** `scripts/specops` is the self-contained bundle shipped with this skill; run it from the skill's install directory against the project's `plans/` — there's nothing to copy, symlink, or vendor, and no `npm install` (it runs on `node ≥ 20`). Claude resolves the skill path automatically when specops triggers; from the project root the invocation is `<specops-skill-path>/scripts/specops next` (or `dag`). Optionally run `<specops-skill-path>/scripts/specops hook install` once so every session in the repo opens with the plans dashboard.
+4. **Use the `specops` CLI in-place from the skill.** `scripts/specops` is the self-contained bundle shipped with this skill; run it from the skill's install directory against the project's `plans/` — there's nothing to copy, symlink, or vendor, and no `npm install` (it runs on `node ≥ 20`). Claude resolves the skill path automatically when specops triggers; from the project root the invocation is `<specops-skill-path>/scripts/specops next` (or `dag`). Optionally run `<specops-skill-path>/scripts/specops setup hooks` once so every session in the repo opens with the plans dashboard.
 5. **Establish the convention** in the team: a new chunk of work starts with a plan file; the last commit before merge flips it to `done`; the plan merges complete, and the issue tracker stays the backlog. Quick-reference checklist for closeout is in [references/plans-protocol.md](references/plans-protocol.md#quick-checklist-for-a-closeout-pr).
 
 ## Keeping specs alive
