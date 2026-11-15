@@ -357,7 +357,7 @@ Skips `done` and `cancelled` plans, then lists what's left in TOON sections:
 - **`blocked_by_deps`** — `depends:` has unfinished entries AND `awaits:` is empty. Each unfinished dep is called out.
 - **`blocked`** — `status: blocked` plans (lifecycle explicitly blocked).
 
-Within each section, plans are topologically sorted so the plans that unblock the most downstream work appear first. Running `specops` with no command prints a condensed dashboard of the same data (and is what the optional `specops hook install` SessionStart hook loads each session).
+Within each section, plans are topologically sorted so the plans that unblock the most downstream work appear first. Running `specops` with no command prints a condensed dashboard of the same data (and is what the optional `specops setup hooks` SessionStart hook loads each session).
 
 Both commands compute over a shared parser/DAG-walker in `src/cli/plans.ts`. See [`src/cli/`](../src/cli/) in this skill; the determinism layer is files-first — to read a single plan, open its file.
 
