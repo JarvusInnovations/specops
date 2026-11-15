@@ -1,9 +1,13 @@
-import { test, expect, beforeEach, afterEach } from "bun:test";
+import { test, expect, beforeEach, afterEach, setDefaultTimeout } from "bun:test";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+
+// Every test spawns the CLI as a child process, several times each. On a loaded
+// machine that runs past bun's 5 s default, so give the file a wider budget.
+setDefaultTimeout(30_000);
 
 const BIN = fileURLToPath(new URL("../src/cli/bin.ts", import.meta.url));
 const PROJECT_HOOK = '"${CLAUDE_PROJECT_DIR}/.claude/skills/specops/scripts/specops"';
